@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function PublicFooter() {
   const currentYear = new Date().getFullYear();
 
@@ -11,7 +13,7 @@ export default function PublicFooter() {
 
           <p className="mt-3 max-w-sm text-sm leading-6 text-zinc-500">
             Impresión, sublimación, publicidad, merchandising y soluciones
-            personalizadas para instituciones, empresas y emprendedores.
+            personalizadas.
           </p>
         </section>
 
@@ -36,8 +38,18 @@ export default function PublicFooter() {
         </section>
       </div>
 
-      <div className="border-t border-zinc-900 px-4 py-5 text-center text-xs text-zinc-600">
-        © {currentYear} LaczCnC. Todos los derechos reservados.
+      <div className="border-t border-zinc-900">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 py-5 text-xs text-zinc-600 sm:flex-row sm:px-6 lg:px-8">
+          <p>© {currentYear} LaczCnC. Todos los derechos reservados.</p>
+
+          <Link
+            href="/admin"
+            aria-label="Acceso administrativo"
+            className="rounded-lg px-3 py-2 font-semibold text-zinc-700 transition hover:bg-zinc-900 hover:text-orange-400"
+          >
+            Acceso interno
+          </Link>
+        </div>
       </div>
     </footer>
   );
