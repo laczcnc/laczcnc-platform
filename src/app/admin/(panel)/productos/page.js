@@ -1,5 +1,7 @@
 import Link from "next/link";
+
 import { createClient } from "@/infrastructure/supabase/server";
+import { toggleProductFlag } from "./actions";
 
 export const metadata = {
   title: "Productos",
@@ -8,7 +10,10 @@ export const metadata = {
 export const dynamic = "force-dynamic";
 
 function formatPrice(product) {
-  if (product.price !== null && product.price !== undefined) {
+  if (
+    product.price !== null &&
+    product.price !== undefined
+  ) {
     return new Intl.NumberFormat("es-PE", {
       style: "currency",
       currency: "PEN",
@@ -18,7 +23,74 @@ function formatPrice(product) {
   return product.price_label || "Cotizar";
 }
 
-export default async function AdminProductsPage() {
+const successMessages = {
+  created: "Producto creado correctamente.",
+  updated: "Producto actualizado correctamente.",
+  deleted: "Producto eliminado correctamente.",
+  status_updated:
+    "El estado del producto fue actualizado.",
+};
+
+const errorMessages = {
+  invalid_product: "El producto no es válido.",
+  invalid_toggle: "El control seleccionado no es válido.",
+  toggle_failed:
+    "No fue posible cambiar el estado del producto.",
+  delete_failed:
+    "No fue posible eliminar el producto.",
+};
+
+function StatusButton({
+  product,
+  field,
+  active,
+  activeText,
+  inactiveText,
+  activeClass,
+}) {
+  return (
+    <form action={toggleProductFlag}>
+      <input
+        type="hidden"
+        name="product_id"
+        value={product.id}
+      />
+
+      <input
+        type="hidden"
+        name="field"
+        value={field}
+      />
+
+      <input
+        type="hidden"
+        name="current_value"
+        value={String(active)}
+      />
+
+      <button
+        type="submit"
+        className={[
+          "rounded-full border px-3 py-1 text-xs font-bold transition active:scale-95",
+          active
+            ? activeClass
+            : "border-zinc-700 bg-zinc-950 text-zinc-500 hover:border-zinc-500 hover:text-zinc-300",
+        ].join(" ")}
+      >
+        {active ? activeText : inactiveText}
+      </button>
+    </form>
+  );
+}
+
+export default async function AdminProductsPage({
+  searchParams,
+}) {
+  const params = await searchParams;
+  const successMessage =
+    successMessages[params?.success];
+  const errorMessage = errorMessages[params?.error];
+
   const supabase = await createClient();
 
   const { data: products, error } = await supabase
@@ -30,6 +102,7 @@ export default async function AdminProductsPage() {
       short_description,
       price,
       price_label,
+      image_url,
       is_published,
       is_featured,
       is_available,
@@ -43,25 +116,6 @@ export default async function AdminProductsPage() {
     `)
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: false });
-
-  if (error) {
-    console.error("Error loading admin products:", error);
-
-    return (
-      <div className="px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
-        <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-6">
-          <p className="text-sm font-bold text-red-300">
-            No fue posible cargar los productos.
-          </p>
-
-          <p className="mt-2 text-sm leading-6 text-red-300/70">
-            Revisa que las tablas, permisos y políticas RLS hayan sido creados
-            correctamente en Supabase.
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   const productList = products || [];
 
@@ -90,19 +144,39 @@ export default async function AdminProductsPage() {
           </h1>
 
           <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-500 sm:text-base">
-            Administra los productos que posteriormente aparecerán en la tienda
-            pública de LaczCnC.
+            Los controles de estado pueden activarse o
+            desactivarse directamente desde esta tabla.
           </p>
         </div>
 
-        <button
-          type="button"
-          disabled
-          className="inline-flex cursor-not-allowed items-center justify-center rounded-xl bg-orange-500/30 px-5 py-3 text-sm font-black text-orange-200/50"
-        >
-          Nuevo producto · Próximo paso
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <Link
+            href="/admin/productos/categorias"
+            className="inline-flex items-center justify-center rounded-xl border border-zinc-700 px-5 py-3 text-sm font-black text-zinc-300 transition hover:border-orange-500 hover:text-orange-400"
+          >
+            Categorías
+          </Link>
+
+          <Link
+            href="/admin/productos/nuevo"
+            className="inline-flex items-center justify-center rounded-xl bg-orange-500 px-5 py-3 text-sm font-black text-zinc-950 transition hover:bg-orange-400"
+          >
+            Nuevo producto
+          </Link>
+        </div>
       </section>
+
+      {successMessage ? (
+        <div className="mt-8 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-5 py-4 text-emerald-300">
+          <p className="font-bold">{successMessage}</p>
+        </div>
+      ) : null}
+
+      {errorMessage ? (
+        <div className="mt-8 rounded-2xl border border-red-500/30 bg-red-500/10 px-5 py-4 text-red-300">
+          <p className="font-bold">{errorMessage}</p>
+        </div>
+      ) : null}
 
       <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <article className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5">
@@ -147,35 +221,9 @@ export default async function AdminProductsPage() {
       </section>
 
       <section className="mt-8 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/40">
-        <div className="flex flex-col justify-between gap-3 border-b border-zinc-800 px-5 py-5 sm:flex-row sm:items-center">
-          <div>
-            <h2 className="font-black text-zinc-100">
-              Catálogo registrado
-            </h2>
-
-            <p className="mt-1 text-sm text-zinc-600">
-              Información obtenida directamente desde Supabase.
-            </p>
-          </div>
-
-          <Link
-            href="/"
-            target="_blank"
-            className="text-sm font-bold text-orange-400 transition hover:text-orange-300"
-          >
-            Ver tienda pública
-          </Link>
-        </div>
-
-        {productList.length === 0 ? (
-          <div className="px-5 py-16 text-center">
-            <p className="text-sm font-bold text-zinc-400">
-              No existen productos registrados.
-            </p>
-
-            <p className="mt-2 text-sm text-zinc-600">
-              Verifica que ejecutaste el bloque SQL completo.
-            </p>
+        {error ? (
+          <div className="p-6 text-red-300">
+            No fue posible cargar los productos.
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -195,11 +243,11 @@ export default async function AdminProductsPage() {
                   </th>
 
                   <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-zinc-600">
-                    Estado
+                    Controles
                   </th>
 
-                  <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-zinc-600">
-                    Destacado
+                  <th className="px-5 py-4 text-right text-xs font-bold uppercase tracking-wider text-zinc-600">
+                    Acción
                   </th>
                 </tr>
               </thead>
@@ -215,13 +263,9 @@ export default async function AdminProductsPage() {
                         {product.name}
                       </p>
 
-                      <p className="mt-1 max-w-md text-sm text-zinc-600">
+                      <p className="mt-1 max-w-sm text-sm text-zinc-600">
                         {product.short_description ||
                           "Sin descripción breve."}
-                      </p>
-
-                      <p className="mt-2 font-mono text-xs text-zinc-700">
-                        /{product.slug}
                       </p>
                     </td>
 
@@ -234,32 +278,44 @@ export default async function AdminProductsPage() {
                       {formatPrice(product)}
                     </td>
 
-                    <td className="whitespace-nowrap px-5 py-5">
-                      <span
-                        className={[
-                          "inline-flex rounded-full border px-3 py-1 text-xs font-bold",
-                          product.is_published
-                            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
-                            : "border-zinc-700 bg-zinc-950 text-zinc-500",
-                        ].join(" ")}
-                      >
-                        {product.is_published
-                          ? "Publicado"
-                          : "Borrador"}
-                      </span>
+                    <td className="px-5 py-5">
+                      <div className="flex min-w-72 flex-wrap gap-2">
+                        <StatusButton
+                          product={product}
+                          field="is_published"
+                          active={product.is_published}
+                          activeText="Publicado"
+                          inactiveText="Borrador"
+                          activeClass="border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white"
+                        />
+
+                        <StatusButton
+                          product={product}
+                          field="is_featured"
+                          active={product.is_featured}
+                          activeText="Destacado"
+                          inactiveText="Normal"
+                          activeClass="border-orange-500/30 bg-orange-500/10 text-orange-400 hover:bg-orange-500 hover:text-zinc-950"
+                        />
+
+                        <StatusButton
+                          product={product}
+                          field="is_available"
+                          active={product.is_available}
+                          activeText="Disponible"
+                          inactiveText="No disponible"
+                          activeClass="border-blue-500/30 bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white"
+                        />
+                      </div>
                     </td>
 
-                    <td className="whitespace-nowrap px-5 py-5">
-                      <span
-                        className={[
-                          "inline-flex rounded-full border px-3 py-1 text-xs font-bold",
-                          product.is_featured
-                            ? "border-orange-500/30 bg-orange-500/10 text-orange-400"
-                            : "border-zinc-800 bg-zinc-950 text-zinc-600",
-                        ].join(" ")}
+                    <td className="whitespace-nowrap px-5 py-5 text-right">
+                      <Link
+                        href={`/admin/productos/${product.id}/editar`}
+                        className="inline-flex rounded-xl border border-zinc-700 px-4 py-2 text-sm font-bold text-zinc-300 transition hover:border-orange-500 hover:text-orange-400"
                       >
-                        {product.is_featured ? "Sí" : "No"}
-                      </span>
+                        Editar
+                      </Link>
                     </td>
                   </tr>
                 ))}
