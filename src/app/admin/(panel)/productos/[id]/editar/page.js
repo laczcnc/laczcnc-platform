@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { createClient } from "@/infrastructure/supabase/server";
+import ProductForm from "@/modules/catalog/components/ProductForm";
+import ProductGalleryManager from "@/modules/catalog/components/ProductGalleryManager";
 import {
   deleteProduct,
   updateProduct,
@@ -14,8 +16,10 @@ export const metadata = {
 export const dynamic = "force-dynamic";
 
 const errorMessages = {
-  name_required: "El nombre del producto es obligatorio.",
-  invalid_slug: "El slug no es válido.",
+  name_required:
+    "El nombre del producto es obligatorio.",
+  invalid_slug:
+    "El slug del producto no es válido.",
   name_too_long:
     "El nombre no puede superar los 160 caracteres.",
   slug_too_long:
@@ -25,7 +29,7 @@ const errorMessages = {
   invalid_sort_order:
     "El orden debe ser igual o mayor que cero.",
   invalid_image_url:
-    "La URL de imagen debe utilizar HTTP o HTTPS.",
+    "La imagen cargada no tiene una URL válida.",
   slug_exists:
     "Otro producto ya utiliza el mismo slug.",
   invalid_category:
@@ -40,8 +44,8 @@ export default async function EditProductPage({
 }) {
   const routeParams = await params;
   const queryParams = await searchParams;
-  const productId = routeParams.id;
 
+  const productId = routeParams.id;
   const errorMessage =
     errorMessages[queryParams?.error];
 
@@ -49,7 +53,8 @@ export default async function EditProductPage({
 
   const [
     { data: product, error: productError },
-    { data: categories },
+    { data: categories, error: categoriesError },
+    { data: productImages, error: imagesError },
   ] = await Promise.all([
     supabase
       .from("products")
@@ -63,6 +68,7 @@ export default async function EditProductPage({
         price,
         price_label,
         image_url,
+        image_path,
         is_published,
         is_featured,
         is_available,
@@ -73,9 +79,28 @@ export default async function EditProductPage({
 
     supabase
       .from("product_categories")
-      .select("id, name, is_active, sort_order")
+      .select(
+        "id, name, slug, is_active, sort_order"
+      )
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true }),
+
+    supabase
+      .from("product_images")
+      .select(`
+        id,
+        product_id,
+        storage_path,
+        public_url,
+        alt_text,
+        is_cover,
+        sort_order,
+        created_at
+      `)
+      .eq("product_id", productId)
+      .order("is_cover", { ascending: false })
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true }),
   ]);
 
   if (productError || !product) {
@@ -83,6 +108,7 @@ export default async function EditProductPage({
   }
 
   const categoryList = categories || [];
+  const imageList = productImages || [];
 
   return (
     <div className="px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
@@ -119,7 +145,10 @@ export default async function EditProductPage({
       </section>
 
       {errorMessage ? (
-        <div className="mt-8 rounded-2xl border border-red-500/30 bg-red-500/10 px-5 py-4">
+        <div
+          role="alert"
+          className="mt-8 rounded-2xl border border-red-500/30 bg-red-500/10 px-5 py-4"
+        >
           <p className="font-bold text-red-300">
             No se pudieron guardar los cambios
           </p>
@@ -130,277 +159,52 @@ export default async function EditProductPage({
         </div>
       ) : null}
 
-      <form
-        action={updateProduct}
-        className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]"
-      >
-        <input
-          type="hidden"
-          name="product_id"
-          value={product.id}
-        />
-
-        <div className="space-y-6">
-          <section className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5 sm:p-6">
-            <h2 className="text-lg font-black text-zinc-100">
-              Información principal
-            </h2>
-
-            <div className="mt-6 grid gap-5">
-              <label>
-                <span className="mb-2 block text-sm font-bold text-zinc-300">
-                  Nombre
-                </span>
-
-                <input
-                  type="text"
-                  name="name"
-                  required
-                  maxLength={160}
-                  defaultValue={product.name}
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-zinc-100 outline-none focus:border-orange-500"
-                />
-              </label>
-
-              <label>
-                <span className="mb-2 block text-sm font-bold text-zinc-300">
-                  Slug
-                </span>
-
-                <input
-                  type="text"
-                  name="slug"
-                  required
-                  maxLength={180}
-                  defaultValue={product.slug}
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 font-mono text-sm text-zinc-100 outline-none focus:border-orange-500"
-                />
-              </label>
-
-              <label>
-                <span className="mb-2 block text-sm font-bold text-zinc-300">
-                  Categoría
-                </span>
-
-                <select
-                  name="category_id"
-                  defaultValue={product.category_id || ""}
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-zinc-100 outline-none focus:border-orange-500"
-                >
-                  <option value="">
-                    Sin categoría
-                  </option>
-
-                  {categoryList.map((category) => (
-                    <option
-                      key={category.id}
-                      value={category.id}
-                    >
-                      {category.name}
-                      {!category.is_active
-                        ? " — Inactiva"
-                        : ""}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                <span className="mb-2 block text-sm font-bold text-zinc-300">
-                  Descripción breve
-                </span>
-
-                <textarea
-                  name="short_description"
-                  rows={3}
-                  maxLength={300}
-                  defaultValue={
-                    product.short_description || ""
-                  }
-                  className="w-full resize-y rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-zinc-100 outline-none focus:border-orange-500"
-                />
-              </label>
-
-              <label>
-                <span className="mb-2 block text-sm font-bold text-zinc-300">
-                  Descripción completa
-                </span>
-
-                <textarea
-                  name="description"
-                  rows={7}
-                  defaultValue={product.description || ""}
-                  className="w-full resize-y rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-zinc-100 outline-none focus:border-orange-500"
-                />
-              </label>
-            </div>
-          </section>
-
-          <section className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5 sm:p-6">
-            <h2 className="text-lg font-black text-zinc-100">
-              Precio e imagen
-            </h2>
-
-            <div className="mt-6 grid gap-5 md:grid-cols-2">
-              <label>
-                <span className="mb-2 block text-sm font-bold text-zinc-300">
-                  Precio
-                </span>
-
-                <input
-                  type="number"
-                  name="price"
-                  min="0"
-                  step="0.01"
-                  defaultValue={product.price ?? ""}
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-zinc-100 outline-none focus:border-orange-500"
-                />
-              </label>
-
-              <label>
-                <span className="mb-2 block text-sm font-bold text-zinc-300">
-                  Etiqueta
-                </span>
-
-                <input
-                  type="text"
-                  name="price_label"
-                  defaultValue={product.price_label || ""}
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-zinc-100 outline-none focus:border-orange-500"
-                />
-              </label>
-
-              <label className="md:col-span-2">
-                <span className="mb-2 block text-sm font-bold text-zinc-300">
-                  URL de imagen
-                </span>
-
-                <input
-                  type="url"
-                  name="image_url"
-                  defaultValue={product.image_url || ""}
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-zinc-100 outline-none focus:border-orange-500"
-                />
-              </label>
-            </div>
-          </section>
+      {categoriesError ? (
+        <div
+          role="alert"
+          className="mt-8 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-5 py-4"
+        >
+          <p className="font-bold text-amber-300">
+            No se pudieron cargar las categorías.
+          </p>
         </div>
+      ) : null}
 
-        <aside className="space-y-6">
-          <section className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5">
-            <h2 className="font-black text-zinc-100">
-              Estado del producto
-            </h2>
+      {imagesError ? (
+        <div
+          role="alert"
+          className="mt-8 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-5 py-4"
+        >
+          <p className="font-bold text-amber-300">
+            No se pudo cargar la galería del producto.
+          </p>
 
-            <p className="mt-2 text-sm leading-6 text-zinc-600">
-              Toca cada interruptor para activarlo o
-              desactivarlo. Los cambios se guardarán al pulsar
-              “Guardar producto”.
-            </p>
+          <p className="mt-1 text-sm text-amber-300/80">
+            Revisa la tabla product_images y sus políticas RLS.
+          </p>
+        </div>
+      ) : null}
 
-            <div className="mt-5 space-y-4">
-              <label className="flex cursor-pointer items-center justify-between rounded-xl border border-zinc-800 bg-zinc-950 p-4">
-                <span>
-                  <span className="block text-sm font-bold text-zinc-300">
-                    Disponible
-                  </span>
+      <ProductForm
+        action={updateProduct}
+        categories={categoryList}
+        product={product}
+        submitLabel="Guardar producto"
+      />
 
-                  <span className="mt-1 block text-xs text-zinc-600">
-                    Puede venderse o cotizarse.
-                  </span>
-                </span>
-
-                <input
-                  type="checkbox"
-                  name="is_available"
-                  defaultChecked={product.is_available}
-                  className="peer sr-only"
-                />
-
-                <span className="relative h-7 w-12 rounded-full bg-zinc-700 transition peer-checked:bg-blue-500">
-                  <span className="absolute left-1 top-1 h-5 w-5 rounded-full bg-white transition peer-checked:translate-x-5" />
-                </span>
-              </label>
-
-              <label className="flex cursor-pointer items-center justify-between rounded-xl border border-zinc-800 bg-zinc-950 p-4">
-                <span>
-                  <span className="block text-sm font-bold text-zinc-300">
-                    Publicado
-                  </span>
-
-                  <span className="mt-1 block text-xs text-zinc-600">
-                    Aparece en la tienda pública.
-                  </span>
-                </span>
-
-                <input
-                  type="checkbox"
-                  name="is_published"
-                  defaultChecked={product.is_published}
-                  className="peer sr-only"
-                />
-
-                <span className="relative h-7 w-12 rounded-full bg-zinc-700 transition peer-checked:bg-emerald-500">
-                  <span className="absolute left-1 top-1 h-5 w-5 rounded-full bg-white transition peer-checked:translate-x-5" />
-                </span>
-              </label>
-
-              <label className="flex cursor-pointer items-center justify-between rounded-xl border border-zinc-800 bg-zinc-950 p-4">
-                <span>
-                  <span className="block text-sm font-bold text-zinc-300">
-                    Destacado
-                  </span>
-
-                  <span className="mt-1 block text-xs text-zinc-600">
-                    Aparece antes que otros productos.
-                  </span>
-                </span>
-
-                <input
-                  type="checkbox"
-                  name="is_featured"
-                  defaultChecked={product.is_featured}
-                  className="peer sr-only"
-                />
-
-                <span className="relative h-7 w-12 rounded-full bg-zinc-700 transition peer-checked:bg-orange-500">
-                  <span className="absolute left-1 top-1 h-5 w-5 rounded-full bg-white transition peer-checked:translate-x-5" />
-                </span>
-              </label>
-            </div>
-          </section>
-
-          <section className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5">
-            <label>
-              <span className="mb-2 block text-sm font-bold text-zinc-300">
-                Orden
-              </span>
-
-              <input
-                type="number"
-                name="sort_order"
-                min="0"
-                defaultValue={product.sort_order}
-                className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-zinc-100 outline-none focus:border-orange-500"
-              />
-            </label>
-          </section>
-
-          <button
-            type="submit"
-            className="w-full rounded-xl bg-orange-500 px-5 py-3 text-sm font-black text-zinc-950 transition hover:bg-orange-400"
-          >
-            Guardar producto
-          </button>
-        </aside>
-      </form>
+      <div className="mt-8">
+        <ProductGalleryManager
+          productId={product.id}
+          initialImages={imageList}
+        />
+      </div>
 
       <section className="mt-8 rounded-2xl border border-red-500/20 bg-red-500/5 p-5">
         <h2 className="font-black text-red-300">
           Zona peligrosa
         </h2>
 
-        <p className="mt-2 text-sm text-red-300/70">
+        <p className="mt-2 text-sm leading-6 text-red-300/70">
           Eliminar el producto es una operación permanente.
         </p>
 
