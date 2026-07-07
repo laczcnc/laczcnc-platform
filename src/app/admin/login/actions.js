@@ -25,5 +25,5 @@ export async function login(formData) {
     redirect("/admin/login?error=invalid_credentials");
   }
 
-  redirect("/admin/dashboard");
+  redirect("/admin");
 }

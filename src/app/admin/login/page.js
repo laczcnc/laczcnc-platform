@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/infrastructure/supabase/server";
 import { login } from "./actions";
@@ -6,6 +7,8 @@ const errorMessages = {
   missing_fields: "Completa el correo y la contraseña.",
   invalid_credentials: "Correo o contraseña incorrectos.",
   session_required: "Debes iniciar sesión para acceder al panel.",
+  access_denied:
+    "Tu cuenta no está autorizada para acceder al panel administrativo.",
 };
 
 export const metadata = {
@@ -20,14 +23,27 @@ export default async function AdminLoginPage({ searchParams }) {
   } = await supabase.auth.getUser();
 
   if (user) {
-    redirect("/admin/dashboard");
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role, is_active")
+      .eq("id", user.id)
+      .single();
+
+    if (
+      profile?.role === "admin" &&
+      profile?.is_active === true
+    ) {
+      redirect("/admin/dashboard");
+    }
+
+    await supabase.auth.signOut();
   }
 
   const params = await searchParams;
   const errorMessage = errorMessages[params?.error];
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-zinc-950 px-4">
+    <main className="flex min-h-screen items-center justify-center bg-zinc-950 px-4 text-zinc-100">
       <section className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900/80 p-7 shadow-2xl shadow-black/40">
         <div className="mb-7">
           <p className="font-mono text-lg font-black text-orange-500">
@@ -91,12 +107,12 @@ export default async function AdminLoginPage({ searchParams }) {
           </button>
         </form>
 
-        <a
+        <Link
           href="/"
           className="mt-6 block text-center text-sm font-semibold text-zinc-500 transition hover:text-orange-400"
         >
           Volver a la tienda
-        </a>
+        </Link>
       </section>
     </main>
   );

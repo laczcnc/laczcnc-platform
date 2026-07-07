@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/infrastructure/supabase/server";
 
-export default async function AdminEntryPage() {
+export async function requireAdmin() {
   const supabase = await createClient();
 
   const {
@@ -10,12 +10,12 @@ export default async function AdminEntryPage() {
   } = await supabase.auth.getUser();
 
   if (userError || !user) {
-    redirect("/admin/login");
+    redirect("/admin/login?error=session_required");
   }
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("role, is_active")
+    .select("id, full_name, role, is_active")
     .eq("id", user.id)
     .single();
 
@@ -30,5 +30,9 @@ export default async function AdminEntryPage() {
     redirect("/admin/login?error=access_denied");
   }
 
-  redirect("/admin/dashboard");
+  return {
+    user,
+    profile,
+    supabase,
+  };
 }

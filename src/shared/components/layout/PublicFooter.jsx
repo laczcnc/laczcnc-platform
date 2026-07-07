@@ -44,8 +44,7 @@ export default function PublicFooter() {
 
           <Link
             href="/admin"
-            aria-label="Acceso administrativo"
-            className="rounded-lg px-3 py-2 font-semibold text-zinc-700 transition hover:bg-zinc-900 hover:text-orange-400"
+            className="rounded-lg px-3 py-2 font-semibold text-zinc-600 transition hover:bg-zinc-900 hover:text-orange-400"
           >
             Acceso interno
           </Link>
