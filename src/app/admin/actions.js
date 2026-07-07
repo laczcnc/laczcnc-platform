@@ -1,16 +1,12 @@
+"use server";
+
 import { redirect } from "next/navigation";
 import { createClient } from "@/infrastructure/supabase/server";
 
-export default async function AdminEntryPage() {
+export async function logout() {
   const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (user) {
-    redirect("/admin/dashboard");
-  }
+  await supabase.auth.signOut();
 
   redirect("/admin/login");
 }
