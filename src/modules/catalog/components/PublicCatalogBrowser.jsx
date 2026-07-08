@@ -26,18 +26,142 @@ function normalizeText(value) {
     .trim();
 }
 
+function getNumericPrice(product) {
+  const numericPrice = Number(product.price);
+
+  if (
+    product.price === null ||
+    product.price === undefined ||
+    product.price === "" ||
+    Number.isNaN(numericPrice)
+  ) {
+    return null;
+  }
+
+  return numericPrice;
+}
+
+function sortProducts(products, sortMode) {
+  const sortedProducts = [...products];
+
+  switch (sortMode) {
+    case "price-asc":
+      return sortedProducts.sort(
+        (firstProduct, secondProduct) => {
+          const firstPrice =
+            getNumericPrice(firstProduct);
+          const secondPrice =
+            getNumericPrice(secondProduct);
+
+          if (
+            firstPrice === null &&
+            secondPrice === null
+          ) {
+            return firstProduct.name.localeCompare(
+              secondProduct.name,
+              "es"
+            );
+          }
+
+          if (firstPrice === null) {
+            return 1;
+          }
+
+          if (secondPrice === null) {
+            return -1;
+          }
+
+          return firstPrice - secondPrice;
+        }
+      );
+
+    case "price-desc":
+      return sortedProducts.sort(
+        (firstProduct, secondProduct) => {
+          const firstPrice =
+            getNumericPrice(firstProduct);
+          const secondPrice =
+            getNumericPrice(secondProduct);
+
+          if (
+            firstPrice === null &&
+            secondPrice === null
+          ) {
+            return firstProduct.name.localeCompare(
+              secondProduct.name,
+              "es"
+            );
+          }
+
+          if (firstPrice === null) {
+            return 1;
+          }
+
+          if (secondPrice === null) {
+            return -1;
+          }
+
+          return secondPrice - firstPrice;
+        }
+      );
+
+    case "name-asc":
+      return sortedProducts.sort(
+        (firstProduct, secondProduct) =>
+          firstProduct.name.localeCompare(
+            secondProduct.name,
+            "es"
+          )
+      );
+
+    case "name-desc":
+      return sortedProducts.sort(
+        (firstProduct, secondProduct) =>
+          secondProduct.name.localeCompare(
+            firstProduct.name,
+            "es"
+          )
+      );
+
+    case "featured":
+    default:
+      return sortedProducts.sort(
+        (firstProduct, secondProduct) => {
+          if (
+            firstProduct.is_featured !==
+            secondProduct.is_featured
+          ) {
+            return firstProduct.is_featured
+              ? -1
+              : 1;
+          }
+
+          const firstOrder =
+            Number(firstProduct.sort_order) || 0;
+          const secondOrder =
+            Number(secondProduct.sort_order) || 0;
+
+          return firstOrder - secondOrder;
+        }
+      );
+  }
+}
+
 export default function PublicCatalogBrowser({
   products = [],
 }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] =
     useState("all");
+  const [sortMode, setSortMode] =
+    useState("featured");
 
   const categories = useMemo(() => {
     const categoryMap = new Map();
 
     products.forEach((product) => {
-      const category = product.product_categories;
+      const category =
+        product.product_categories;
 
       if (!category?.id || !category?.name) {
         return;
@@ -63,54 +187,64 @@ export default function PublicCatalogBrowser({
     const normalizedSearch =
       normalizeText(searchTerm);
 
-    return products.filter((product) => {
-      const category =
-        product.product_categories;
+    const matchingProducts = products.filter(
+      (product) => {
+        const category =
+          product.product_categories;
 
-      const matchesCategory =
-        selectedCategory === "all" ||
-        category?.id === selectedCategory;
+        const matchesCategory =
+          selectedCategory === "all" ||
+          category?.id === selectedCategory;
 
-      if (!matchesCategory) {
-        return false;
+        if (!matchesCategory) {
+          return false;
+        }
+
+        if (!normalizedSearch) {
+          return true;
+        }
+
+        const searchableContent = normalizeText(
+          [
+            product.name,
+            product.short_description,
+            category?.name,
+            product.price_label,
+          ].join(" ")
+        );
+
+        return searchableContent.includes(
+          normalizedSearch
+        );
       }
+    );
 
-      if (!normalizedSearch) {
-        return true;
-      }
-
-      const searchableContent = normalizeText(
-        [
-          product.name,
-          product.short_description,
-          category?.name,
-          product.price_label,
-        ].join(" ")
-      );
-
-      return searchableContent.includes(
-        normalizedSearch
-      );
-    });
+    return sortProducts(
+      matchingProducts,
+      sortMode
+    );
   }, [
     products,
     searchTerm,
     selectedCategory,
+    sortMode,
   ]);
 
   function clearFilters() {
     setSearchTerm("");
     setSelectedCategory("all");
+    setSortMode("featured");
   }
 
   const filtersAreActive =
     searchTerm.trim() !== "" ||
-    selectedCategory !== "all";
+    selectedCategory !== "all" ||
+    sortMode !== "featured";
 
   return (
-    <div className="mt-10">
+    <div className="mt-4">
       <section className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 sm:p-5">
-        <div className="grid gap-4 lg:grid-cols-[1fr_280px_auto]">
+        <div className="grid gap-4 lg:grid-cols-[1fr_240px_auto]">
           <div>
             <label
               htmlFor="catalog-search"
@@ -126,41 +260,46 @@ export default function PublicCatalogBrowser({
               onChange={(event) =>
                 setSearchTerm(event.target.value)
               }
-              placeholder="Ejemplo: placa, taza, medalla..."
+              placeholder="Placa, taza, medalla..."
               className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-700 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/10"
             />
           </div>
 
           <div>
             <label
-              htmlFor="catalog-category"
+              htmlFor="catalog-sort"
               className="mb-2 block text-xs font-bold uppercase tracking-[0.16em] text-zinc-500"
             >
-              Categoría
+              Ordenar por
             </label>
 
             <select
-              id="catalog-category"
-              value={selectedCategory}
+              id="catalog-sort"
+              value={sortMode}
               onChange={(event) =>
-                setSelectedCategory(
-                  event.target.value
-                )
+                setSortMode(event.target.value)
               }
               className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm text-zinc-100 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-500/10"
             >
-              <option value="all">
-                Todas las categorías
+              <option value="featured">
+                Destacados primero
               </option>
 
-              {categories.map((category) => (
-                <option
-                  key={category.id}
-                  value={category.id}
-                >
-                  {category.name}
-                </option>
-              ))}
+              <option value="price-asc">
+                Precio: menor a mayor
+              </option>
+
+              <option value="price-desc">
+                Precio: mayor a menor
+              </option>
+
+              <option value="name-asc">
+                Nombre: A–Z
+              </option>
+
+              <option value="name-desc">
+                Nombre: Z–A
+              </option>
             </select>
           </div>
 
@@ -175,6 +314,52 @@ export default function PublicCatalogBrowser({
             </button>
           </div>
         </div>
+
+        {categories.length > 0 ? (
+          <div className="mt-5 border-t border-zinc-800 pt-5">
+            <p className="mb-3 text-xs font-bold uppercase tracking-[0.16em] text-zinc-500">
+              Categorías
+            </p>
+
+            <div className="flex gap-2 overflow-x-auto pb-2">
+              <button
+                type="button"
+                onClick={() =>
+                  setSelectedCategory("all")
+                }
+                className={[
+                  "shrink-0 rounded-full border px-4 py-2 text-sm font-bold transition",
+                  selectedCategory === "all"
+                    ? "border-orange-500 bg-orange-500 text-zinc-950"
+                    : "border-zinc-700 bg-zinc-950 text-zinc-400 hover:border-orange-500/60 hover:text-orange-400",
+                ].join(" ")}
+              >
+                Todos
+              </button>
+
+              {categories.map((category) => (
+                <button
+                  key={category.id}
+                  type="button"
+                  onClick={() =>
+                    setSelectedCategory(
+                      category.id
+                    )
+                  }
+                  className={[
+                    "shrink-0 rounded-full border px-4 py-2 text-sm font-bold transition",
+                    selectedCategory ===
+                    category.id
+                      ? "border-orange-500 bg-orange-500 text-zinc-950"
+                      : "border-zinc-700 bg-zinc-950 text-zinc-400 hover:border-orange-500/60 hover:text-orange-400",
+                  ].join(" ")}
+                >
+                  {category.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </section>
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
@@ -188,9 +373,13 @@ export default function PublicCatalogBrowser({
         </p>
 
         {filtersAreActive ? (
-          <p className="text-xs font-bold uppercase tracking-wider text-orange-400">
-            Filtros activos
-          </p>
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="text-xs font-bold uppercase tracking-wider text-orange-400 transition hover:text-orange-300"
+          >
+            Restablecer catálogo
+          </button>
         ) : null}
       </div>
 
