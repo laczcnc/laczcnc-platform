@@ -1,26 +1,13 @@
 import Link from "next/link";
 
 import { createClient } from "@/infrastructure/supabase/server";
+import PublicCatalogBrowser from "@/modules/catalog/components/PublicCatalogBrowser";
 
 export const metadata = {
   title: "Tienda",
 };
 
 export const dynamic = "force-dynamic";
-
-function formatPrice(product) {
-  if (
-    product.price !== null &&
-    product.price !== undefined
-  ) {
-    return new Intl.NumberFormat("es-PE", {
-      style: "currency",
-      currency: "PEN",
-    }).format(Number(product.price));
-  }
-
-  return product.price_label || "Cotizar";
-}
 
 export default async function StorePage() {
   const supabase = await createClient();
@@ -55,16 +42,21 @@ export default async function StorePage() {
       ascending: false,
     });
 
+  if (error) {
+    console.error(
+      "Error cargando el catálogo público:",
+      {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      }
+    );
+  }
+
   const productList = error
     ? []
     : products || [];
-
-  if (error) {
-    console.error(
-      "Error loading public products:",
-      error
-    );
-  }
 
   return (
     <>
@@ -75,7 +67,8 @@ export default async function StorePage() {
           </span>
 
           <h1 className="mt-6 max-w-4xl text-4xl font-black tracking-tight text-zinc-50 sm:text-6xl">
-            Productos que convierten tus ideas en algo real.
+            Productos que convierten tus ideas en algo
+            real.
           </h1>
 
           <p className="mt-6 max-w-2xl text-base leading-7 text-zinc-400 sm:text-lg">
@@ -116,8 +109,9 @@ export default async function StorePage() {
           </h2>
 
           <p className="mt-3 max-w-2xl text-zinc-500">
-            Toca o haz clic sobre un producto para abrir
-            sus detalles, imágenes y opciones de cotización.
+            Busca por nombre, categoría o descripción.
+            Toca un producto para ver todos sus detalles
+            e imágenes.
           </p>
         </div>
 
@@ -129,8 +123,8 @@ export default async function StorePage() {
             </p>
 
             <p className="mt-2 text-sm text-red-300/70">
-              Puedes comunicarte desde la sección
-              Contacto.
+              Puedes comunicarte mediante la sección de
+              contacto.
             </p>
           </div>
         ) : null}
@@ -144,65 +138,9 @@ export default async function StorePage() {
         ) : null}
 
         {productList.length > 0 ? (
-          <div className="mt-10 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-            {productList.map((product) => (
-              <Link
-                key={product.id}
-                href={`/producto/${product.slug}`}
-                className="group block cursor-pointer overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/70 transition duration-200 hover:-translate-y-1 hover:border-orange-500/60 hover:shadow-2xl hover:shadow-orange-950/20 focus:outline-none focus:ring-2 focus:ring-orange-500"
-              >
-                {product.image_url ? (
-                  <div className="aspect-[4/3] overflow-hidden bg-zinc-900">
-                    <img
-                      src={product.image_url}
-                      alt={product.name}
-                      className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-                    />
-                  </div>
-                ) : (
-                  <div className="flex aspect-[4/3] items-center justify-center bg-gradient-to-br from-zinc-800 to-zinc-900">
-                    <span className="font-mono text-4xl font-black text-zinc-700">
-                      LC
-                    </span>
-                  </div>
-                )}
-
-                <div className="p-5">
-                  <div className="flex items-start justify-between gap-3">
-                    <p className="text-xs font-bold uppercase tracking-wider text-orange-400">
-                      {product.product_categories?.name ||
-                        "Producto"}
-                    </p>
-
-                    {product.is_featured ? (
-                      <span className="rounded-full border border-orange-500/30 bg-orange-500/10 px-2 py-0.5 text-[10px] font-bold uppercase text-orange-400">
-                        Destacado
-                      </span>
-                    ) : null}
-                  </div>
-
-                  <h3 className="mt-3 text-lg font-black text-zinc-100 transition group-hover:text-orange-400">
-                    {product.name}
-                  </h3>
-
-                  <p className="mt-3 min-h-12 text-sm leading-6 text-zinc-500">
-                    {product.short_description ||
-                      "Producto personalizado de acuerdo con tus necesidades."}
-                  </p>
-
-                  <div className="mt-5 flex items-center justify-between gap-3 border-t border-zinc-800 pt-5">
-                    <p className="font-black text-zinc-200">
-                      {formatPrice(product)}
-                    </p>
-
-                    <span className="text-sm font-black text-orange-400 transition group-hover:translate-x-1">
-                      Ver producto →
-                    </span>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
+          <PublicCatalogBrowser
+            products={productList}
+          />
         ) : null}
       </section>
     </>
