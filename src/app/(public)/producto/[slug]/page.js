@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { createClient } from "@/infrastructure/supabase/server";
 import PublicProductGallery from "@/modules/catalog/components/PublicProductGallery";
+import PublicQuoteRequestForm from "@/modules/quotes/components/PublicQuoteRequestForm";
 
 export const dynamic = "force-dynamic";
 
@@ -35,23 +36,9 @@ export async function generateMetadata({ params }) {
       .eq("is_available", true)
       .maybeSingle();
 
-    if (error) {
-      console.error("Error generando metadata del producto:", {
-        slug,
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-      });
-
+    if (error || !product) {
       return {
         title: "Producto",
-      };
-    }
-
-    if (!product) {
-      return {
-        title: "Producto no encontrado",
       };
     }
 
@@ -61,9 +48,7 @@ export async function generateMetadata({ params }) {
         product.short_description ||
         `Producto personalizado de LaczCnC: ${product.name}`,
     };
-  } catch (error) {
-    console.error("Error inesperado generando metadata:", error);
-
+  } catch {
     return {
       title: "Producto",
     };
@@ -106,16 +91,19 @@ export default async function ProductDetailPage({
       .maybeSingle();
 
   if (productError) {
-    console.error("Error consultando producto público:", {
-      slug,
-      code: productError.code,
-      message: productError.message,
-      details: productError.details,
-      hint: productError.hint,
-    });
+    console.error(
+      "Error consultando producto público:",
+      {
+        slug,
+        code: productError.code,
+        message: productError.message,
+        details: productError.details,
+        hint: productError.hint,
+      }
+    );
 
     throw new Error(
-      `No se pudo consultar el producto "${slug}" en Supabase.`
+      `No se pudo consultar el producto "${slug}".`
     );
   }
 
@@ -139,19 +127,25 @@ export default async function ProductDetailPage({
       created_at
     `)
     .eq("product_id", product.id)
-    .order("is_cover", { ascending: false })
-    .order("sort_order", { ascending: true })
-    .order("created_at", { ascending: true });
+    .order("is_cover", {
+      ascending: false,
+    })
+    .order("sort_order", {
+      ascending: true,
+    })
+    .order("created_at", {
+      ascending: true,
+    });
 
   if (imagesError) {
-    console.error("Error cargando galería pública:", {
-      productId: product.id,
-      slug,
-      code: imagesError.code,
-      message: imagesError.message,
-      details: imagesError.details,
-      hint: imagesError.hint,
-    });
+    console.error(
+      "Error cargando galería pública:",
+      {
+        productId: product.id,
+        code: imagesError.code,
+        message: imagesError.message,
+      }
+    );
   }
 
   let galleryImages = productImages || [];
@@ -164,7 +158,8 @@ export default async function ProductDetailPage({
       {
         id: "legacy-cover",
         product_id: product.id,
-        storage_path: product.image_path || "",
+        storage_path:
+          product.image_path || "",
         public_url: product.image_url,
         alt_text: product.name,
         is_cover: true,
@@ -178,9 +173,9 @@ export default async function ProductDetailPage({
     "Producto personalizado";
 
   return (
-    <main className="bg-zinc-950 text-zinc-100">
+    <main className="min-h-screen bg-zinc-950 text-zinc-100">
       <section className="border-b border-zinc-800">
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
           <nav
             aria-label="Ruta de navegación"
             className="flex flex-wrap items-center gap-2 text-sm text-zinc-600"
@@ -207,7 +202,7 @@ export default async function ProductDetailPage({
         </div>
       </section>
 
-      <section className="mx-auto grid max-w-7xl gap-10 px-4 py-10 sm:px-6 lg:grid-cols-2 lg:gap-16 lg:px-8 lg:py-16">
+      <section className="mx-auto grid max-w-7xl gap-10 px-4 py-10 sm:px-6 lg:grid-cols-2 lg:gap-16 lg:px-8 lg:py-14">
         <PublicProductGallery
           productName={product.name}
           images={galleryImages}
@@ -238,7 +233,7 @@ export default async function ProductDetailPage({
 
           <div className="mt-8 border-y border-zinc-800 py-6">
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-600">
-              Precio
+              Precio referencial
             </p>
 
             <p className="mt-2 text-3xl font-black text-orange-400">
@@ -246,8 +241,9 @@ export default async function ProductDetailPage({
             </p>
 
             <p className="mt-2 text-sm text-zinc-600">
-              El precio final puede variar según cantidad,
-              tamaño, materiales y personalización.
+              El precio final puede variar según
+              cantidad, tamaño, materiales y
+              personalización.
             </p>
           </div>
 
@@ -264,14 +260,12 @@ export default async function ProductDetailPage({
           ) : null}
 
           <div className="mt-10 grid gap-3 sm:grid-cols-2">
-            <Link
-              href={`/contacto?producto=${encodeURIComponent(
-                product.name
-              )}`}
+            <a
+              href="#cotizacion"
               className="flex items-center justify-center rounded-xl bg-orange-500 px-5 py-3 text-sm font-black text-zinc-950 transition hover:bg-orange-400"
             >
               Solicitar cotización
-            </Link>
+            </a>
 
             <Link
               href="/"
@@ -281,6 +275,13 @@ export default async function ProductDetailPage({
             </Link>
           </div>
         </div>
+      </section>
+
+      <section className="mx-auto max-w-4xl px-4 pb-16 sm:px-6 lg:px-8">
+        <PublicQuoteRequestForm
+          productId={product.id}
+          productName={product.name}
+        />
       </section>
     </main>
   );

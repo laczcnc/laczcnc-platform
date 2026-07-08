@@ -1,7 +1,10 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+
+import { createClient } from "@/infrastructure/supabase/client";
 
 const navigation = [
   {
@@ -11,16 +14,24 @@ const navigation = [
     enabled: true,
   },
   {
+    name: "Cotizaciones",
+    href: "/admin/cotizaciones",
+    shortName: "CT",
+    enabled: true,
+    showQuoteCount: true,
+  },
+  
+  {
     name: "Pedidos",
     href: "/admin/pedidos",
     shortName: "PE",
-    enabled: false,
+    enabled: true,
   },
   {
     name: "Clientes",
     href: "/admin/clientes",
     shortName: "CL",
-    enabled: false,
+    enabled: true,
   },
   {
     name: "Productos",
@@ -63,6 +74,47 @@ const navigation = [
 export default function AdminSidebar() {
   const pathname = usePathname();
 
+  const [newQuoteCount, setNewQuoteCount] =
+    useState(0);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadNewQuoteCount() {
+      const supabase = createClient();
+
+      const { count, error } = await supabase
+        .from("quote_requests")
+        .select("id", {
+          count: "exact",
+          head: true,
+        })
+        .eq("status", "new");
+
+      if (error) {
+        console.error(
+          "Error cargando contador de cotizaciones:",
+          {
+            code: error.code,
+            message: error.message,
+          }
+        );
+
+        return;
+      }
+
+      if (isMounted) {
+        setNewQuoteCount(count || 0);
+      }
+    }
+
+    loadNewQuoteCount();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [pathname]);
+
   return (
     <aside className="hidden min-h-screen w-72 shrink-0 border-r border-zinc-800 bg-zinc-950 lg:block">
       <div className="sticky top-0 flex h-screen flex-col">
@@ -71,7 +123,10 @@ export default function AdminSidebar() {
             href="/admin/dashboard"
             className="font-mono text-xl font-black tracking-tight text-orange-500"
           >
-            LACZ<span className="text-zinc-100">CnC</span>
+            LACZ
+            <span className="text-zinc-100">
+              CnC
+            </span>
           </Link>
         </div>
 
@@ -85,7 +140,9 @@ export default function AdminSidebar() {
               {navigation.map((item) => {
                 const isActive =
                   pathname === item.href ||
-                  pathname.startsWith(`${item.href}/`);
+                  pathname.startsWith(
+                    `${item.href}/`
+                  );
 
                 if (!item.enabled) {
                   return (
@@ -129,7 +186,18 @@ export default function AdminSidebar() {
                         {item.shortName}
                       </span>
 
-                      <span>{item.name}</span>
+                      <span className="flex-1">
+                        {item.name}
+                      </span>
+
+                      {item.showQuoteCount &&
+                      newQuoteCount > 0 ? (
+                        <span className="flex min-w-6 items-center justify-center rounded-full bg-red-500 px-2 py-0.5 text-xs font-black text-white">
+                          {newQuoteCount > 99
+                            ? "99+"
+                            : newQuoteCount}
+                        </span>
+                      ) : null}
                     </Link>
                   </li>
                 );
