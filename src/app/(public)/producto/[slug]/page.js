@@ -24,28 +24,50 @@ export async function generateMetadata({ params }) {
   const routeParams = await params;
   const slug = routeParams.slug;
 
-  const supabase = await createClient();
+  try {
+    const supabase = await createClient();
 
-  const { data: product } = await supabase
-    .from("products")
-    .select("name, short_description")
-    .eq("slug", slug)
-    .eq("is_published", true)
-    .eq("is_available", true)
-    .maybeSingle();
+    const { data: product, error } = await supabase
+      .from("products")
+      .select("name, short_description")
+      .eq("slug", slug)
+      .eq("is_published", true)
+      .eq("is_available", true)
+      .maybeSingle();
 
-  if (!product) {
+    if (error) {
+      console.error("Error generando metadata del producto:", {
+        slug,
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      });
+
+      return {
+        title: "Producto",
+      };
+    }
+
+    if (!product) {
+      return {
+        title: "Producto no encontrado",
+      };
+    }
+
     return {
-      title: "Producto no encontrado",
+      title: product.name,
+      description:
+        product.short_description ||
+        `Producto personalizado de LaczCnC: ${product.name}`,
+    };
+  } catch (error) {
+    console.error("Error inesperado generando metadata:", error);
+
+    return {
+      title: "Producto",
     };
   }
-
-  return {
-    title: product.name,
-    description:
-      product.short_description ||
-      `Producto personalizado de LaczCnC: ${product.name}`,
-  };
 }
 
 export default async function ProductDetailPage({
@@ -81,9 +103,23 @@ export default async function ProductDetailPage({
       .eq("slug", slug)
       .eq("is_published", true)
       .eq("is_available", true)
-      .single();
+      .maybeSingle();
 
-  if (productError || !product) {
+  if (productError) {
+    console.error("Error consultando producto público:", {
+      slug,
+      code: productError.code,
+      message: productError.message,
+      details: productError.details,
+      hint: productError.hint,
+    });
+
+    throw new Error(
+      `No se pudo consultar el producto "${slug}" en Supabase.`
+    );
+  }
+
+  if (!product) {
     notFound();
   }
 
@@ -108,10 +144,14 @@ export default async function ProductDetailPage({
     .order("created_at", { ascending: true });
 
   if (imagesError) {
-    console.error(
-      "Error loading public product gallery:",
-      imagesError
-    );
+    console.error("Error cargando galería pública:", {
+      productId: product.id,
+      slug,
+      code: imagesError.code,
+      message: imagesError.message,
+      details: imagesError.details,
+      hint: imagesError.hint,
+    });
   }
 
   let galleryImages = productImages || [];
