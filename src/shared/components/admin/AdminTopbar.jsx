@@ -1,74 +1,7 @@
 import Link from "next/link";
 
 import { logout } from "@/app/admin/actions";
-
-const mobileNavigation = [
-  {
-    name: "Centro de operaciones",
-    href: "/admin/dashboard",
-    enabled: true,
-  },
-  {
-    name: "Cotizaciones",
-    href: "/admin/cotizaciones",
-    enabled: true,
-  },
-  {
-    name: "Pedidos",
-    href: "/admin/pedidos",
-    enabled: true,
-  },
-  {
-    name: "Clientes",
-    href: "/admin/clientes",
-    enabled: true,
-  },
-  {
-    name: "Productos",
-    href: "/admin/productos",
-    enabled: true,
-  },
-  {
-    name: "Producción",
-    href: "/admin/produccion",
-    enabled: true,
-  },
-  {
-    name: "Talleres",
-    href: "/admin/produccion/talleres",
-    enabled: true,
-  },
-  {
-    name: "Historial producción",
-    href: "/admin/produccion/historial",
-    enabled: true,
-  },
-  {
-    name: "Entregas",
-    href: "/admin/entregas",
-    enabled: true,
-  },
-  {
-    name: "Mapa",
-    href: "/admin/mapa",
-    enabled: true,
-  },
-  {
-    name: "Galería",
-    href: "/admin/galeria",
-    enabled: true,
-  },
-  {
-    name: "Usuarios",
-    href: "/admin/usuarios",
-    enabled: false,
-  },
-  {
-    name: "Configuración",
-    href: "/admin/configuracion",
-    enabled: false,
-  },
-];
+import { adminNavigation } from "@/shared/config/admin-navigation";
 
 export default function AdminTopbar({
   displayName,
@@ -107,9 +40,11 @@ export default function AdminTopbar({
                 className="mt-3"
               >
                 <ul className="space-y-1">
-                  {mobileNavigation.map(
+                  {adminNavigation.map(
                     (item) => (
-                      <li key={item.name}>
+                      <li
+                        key={item.name}
+                      >
                         {item.enabled ? (
                           <Link
                             href={item.href}
