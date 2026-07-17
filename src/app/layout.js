@@ -1,4 +1,5 @@
 import { Geist, Geist_Mono } from "next/font/google";
+import "leaflet/dist/leaflet.css";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -20,7 +21,9 @@ export const metadata = {
     "Impresión, sublimación, publicidad, merchandising y producción personalizada.",
 };
 
-export default function RootLayout({ children }) {
+export default function RootLayout({
+  children,
+}) {
   return (
     <html lang="es" className="dark">
       <body

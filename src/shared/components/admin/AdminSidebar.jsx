@@ -20,7 +20,6 @@ const navigation = [
     enabled: true,
     showQuoteCount: true,
   },
-  
   {
     name: "Pedidos",
     href: "/admin/pedidos",
@@ -43,7 +42,27 @@ const navigation = [
     name: "Producción",
     href: "/admin/produccion",
     shortName: "PD",
-    enabled: false,
+    enabled: true,
+    exact: true,
+  },
+  {
+    name: "Talleres",
+    href: "/admin/produccion/talleres",
+    shortName: "TA",
+    enabled: true,
+    exact: true,
+  },
+  {
+    name: "Historial producción",
+    href: "/admin/produccion/historial",
+    shortName: "HP",
+    enabled: true,
+  },
+  {
+    name: "Entregas",
+    href: "/admin/entregas",
+    shortName: "EN",
+    enabled: true,
   },
   {
     name: "Galería",
@@ -138,11 +157,12 @@ export default function AdminSidebar() {
           <nav aria-label="Navegación administrativa">
             <ul className="space-y-1">
               {navigation.map((item) => {
-                const isActive =
-                  pathname === item.href ||
-                  pathname.startsWith(
-                    `${item.href}/`
-                  );
+                const isActive = item.exact
+                  ? pathname === item.href
+                  : pathname === item.href ||
+                    pathname.startsWith(
+                      `${item.href}/`
+                    );
 
                 if (!item.enabled) {
                   return (
