@@ -74,7 +74,7 @@ const navigation = [
     name: "Galería",
     href: "/admin/galeria",
     shortName: "GA",
-    enabled: false,
+    enabled: true,
   },
   {
     name: "Usuarios",
@@ -93,8 +93,10 @@ const navigation = [
 export default function AdminSidebar() {
   const pathname = usePathname();
 
-  const [newQuoteCount, setNewQuoteCount] =
-    useState(0);
+  const [
+    newQuoteCount,
+    setNewQuoteCount,
+  ] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
@@ -102,13 +104,14 @@ export default function AdminSidebar() {
     async function loadNewQuoteCount() {
       const supabase = createClient();
 
-      const { count, error } = await supabase
-        .from("quote_requests")
-        .select("id", {
-          count: "exact",
-          head: true,
-        })
-        .eq("status", "new");
+      const { count, error } =
+        await supabase
+          .from("quote_requests")
+          .select("id", {
+            count: "exact",
+            head: true,
+          })
+          .eq("status", "new");
 
       if (error) {
         console.error(
@@ -157,19 +160,24 @@ export default function AdminSidebar() {
           <nav aria-label="Navegación administrativa">
             <ul className="space-y-1">
               {navigation.map((item) => {
-                const isActive = item.exact
-                  ? pathname === item.href
-                  : pathname === item.href ||
-                    pathname.startsWith(
-                      `${item.href}/`
-                    );
+                const isActive =
+                  item.exact
+                    ? pathname ===
+                      item.href
+                    : pathname ===
+                        item.href ||
+                      pathname.startsWith(
+                        `${item.href}/`
+                      );
 
                 if (!item.enabled) {
                   return (
                     <li key={item.name}>
                       <div className="flex cursor-not-allowed items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-zinc-700">
                         <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-800 bg-zinc-900 font-mono text-[10px] font-black text-zinc-700">
-                          {item.shortName}
+                          {
+                            item.shortName
+                          }
                         </span>
 
                         <span className="flex-1">
@@ -213,7 +221,8 @@ export default function AdminSidebar() {
                       {item.showQuoteCount &&
                       newQuoteCount > 0 ? (
                         <span className="flex min-w-6 items-center justify-center rounded-full bg-red-500 px-2 py-0.5 text-xs font-black text-white">
-                          {newQuoteCount > 99
+                          {newQuoteCount >
+                          99
                             ? "99+"
                             : newQuoteCount}
                         </span>
