@@ -65,15 +65,15 @@ const navigation = [
     enabled: true,
   },
   {
-    name: "Galería",
-    href: "/admin/galeria",
-    shortName: "GA",
-    enabled: false,
-  },
-  {
     name: "Mapa",
     href: "/admin/mapa",
     shortName: "MA",
+    enabled: true,
+  },
+  {
+    name: "Galería",
+    href: "/admin/galeria",
+    shortName: "GA",
     enabled: false,
   },
   {
