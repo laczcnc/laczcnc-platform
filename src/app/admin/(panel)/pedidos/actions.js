@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { requireAdmin } from "@/core/auth/require-admin";
+import { PERMISSIONS } from "@/core/auth/permissions";
+import { requirePermission } from "@/core/auth/require-permission";
 import { createClient } from "@/infrastructure/supabase/server";
 
 const ORDER_STATUSES = [
@@ -60,7 +61,7 @@ function normalizeOptionalInteger(value) {
 }
 
 export async function updateOrder(formData) {
-  await requireAdmin();
+  await requirePermission(PERMISSIONS.ORDERS_MANAGE);
 
   const orderId = normalizeText(
     formData.get("order_id")

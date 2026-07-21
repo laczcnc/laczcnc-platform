@@ -1,6 +1,7 @@
 import Link from "next/link";
 
-import { requireAdmin } from "@/core/auth/require-admin";
+import { PERMISSIONS } from "@/core/auth/permissions";
+import { requirePermission } from "@/core/auth/require-permission";
 import { createClient } from "@/infrastructure/supabase/server";
 
 export const metadata = {
@@ -134,7 +135,7 @@ function getEventDescription(event) {
 export default async function ProductionHistoryPage({
   searchParams,
 }) {
-  await requireAdmin();
+  await requirePermission(PERMISSIONS.PRODUCTION_VIEW);
 
   const queryParams = await searchParams;
 

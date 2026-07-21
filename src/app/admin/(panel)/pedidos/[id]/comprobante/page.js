@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { requireAdmin } from "@/core/auth/require-admin";
+import { PERMISSIONS } from "@/core/auth/permissions";
+import { requirePermission } from "@/core/auth/require-permission";
 import { createClient } from "@/infrastructure/supabase/server";
 import PrintOrderButton from "@/modules/orders/components/PrintOrderButton";
 
@@ -41,7 +42,7 @@ function formatDate(value) {
 export default async function OrderReceiptPage({
   params,
 }) {
-  await requireAdmin();
+  await requirePermission(PERMISSIONS.ORDERS_MANAGE);
 
   const routeParams = await params;
   const orderId = routeParams.id;

@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireAdmin } from "@/core/auth/require-admin";
+import { PERMISSIONS } from "@/core/auth/permissions";
+import { requirePermission } from "@/core/auth/require-permission";
 import { createClient } from "@/infrastructure/supabase/server";
 
 const ORDER_STATUSES = [
@@ -40,6 +41,25 @@ const ALLOWED_TRANSITIONS = {
   cancelled: ["draft"],
 };
 
+const ROLE_TRANSITIONS = {
+  sales: {
+    draft: ["confirmed", "cancelled"],
+    confirmed: ["draft", "cancelled"],
+    delivered: ["completed"],
+    completed: ["delivered"],
+    cancelled: ["draft"],
+  },
+  production: {
+    confirmed: ["production"],
+    production: ["confirmed", "ready"],
+    ready: ["production"],
+  },
+  delivery: {
+    ready: ["delivered"],
+    delivered: ["ready"],
+  },
+};
+
 function normalizeText(value) {
   return String(value || "").trim();
 }
@@ -47,7 +67,9 @@ function normalizeText(value) {
 export async function changeOrderStatus(
   formData
 ) {
-  await requireAdmin();
+  const { profile } = await requirePermission(
+    PERMISSIONS.ORDER_WORKFLOW_MANAGE
+  );
 
   const orderId = normalizeText(
     formData.get("order_id")
@@ -126,6 +148,23 @@ export async function changeOrderStatus(
   }
 
   if (
+    profile.role !== "admin" &&
+    profile.role !== "manager"
+  ) {
+    const roleTransitions =
+      ROLE_TRANSITIONS[profile.role] || {};
+
+    const permittedForRole =
+      roleTransitions[currentOrder.status] || [];
+
+    if (!permittedForRole.includes(newStatus)) {
+      throw new Error(
+        "Tu rol no permite realizar este cambio de estado."
+      );
+    }
+  }
+
+  if (
     newStatus === "confirmed" &&
     Number(currentOrder.total_amount || 0) <= 0
   ) {
@@ -143,40 +182,14 @@ export async function changeOrderStatus(
     );
   }
 
-  const timestamps = {};
-
-  if (
-    newStatus === "confirmed" &&
-    !currentOrder.confirmed_at
-  ) {
-    timestamps.confirmed_at =
-      new Date().toISOString();
-  }
-
-  if (
-    newStatus === "completed" &&
-    !currentOrder.completed_at
-  ) {
-    timestamps.completed_at =
-      new Date().toISOString();
-  }
-
-  if (
-    newStatus === "cancelled" &&
-    !currentOrder.cancelled_at
-  ) {
-    timestamps.cancelled_at =
-      new Date().toISOString();
-  }
-
   const { error: updateError } =
-    await supabase
-      .from("orders")
-      .update({
-        status: newStatus,
-        ...timestamps,
-      })
-      .eq("id", orderId);
+    await supabase.rpc(
+      "change_order_status_staff",
+      {
+        target_order_id: orderId,
+        requested_status: newStatus,
+      }
+    );
 
   if (updateError) {
     console.error(

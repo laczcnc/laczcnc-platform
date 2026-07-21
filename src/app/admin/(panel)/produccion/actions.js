@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireAdmin } from "@/core/auth/require-admin";
+import { PERMISSIONS } from "@/core/auth/permissions";
+import { requirePermission } from "@/core/auth/require-permission";
 import { createClient } from "@/infrastructure/supabase/server";
 
 const JOB_STATUSES = [
@@ -70,7 +71,7 @@ function revalidateProduction(orderId = null) {
 export async function createProductionJob(
   formData
 ) {
-  await requireAdmin();
+  await requirePermission(PERMISSIONS.PRODUCTION_MANAGE);
 
   const orderId = normalizeText(
     formData.get("order_id")
@@ -223,12 +224,13 @@ export async function createProductionJob(
   }
 
   const { error: orderUpdateError } =
-    await supabase
-      .from("orders")
-      .update({
-        status: "production",
-      })
-      .eq("id", orderId);
+    await supabase.rpc(
+      "sync_order_from_production",
+      {
+        target_order_id: orderId,
+        requested_status: "production",
+      }
+    );
 
   if (orderUpdateError) {
     console.error(
@@ -243,7 +245,7 @@ export async function createProductionJob(
 export async function updateProductionJob(
   formData
 ) {
-  await requireAdmin();
+  await requirePermission(PERMISSIONS.PRODUCTION_MANAGE);
 
   const productionJobId = normalizeText(
     formData.get("production_job_id")
@@ -384,12 +386,13 @@ export async function updateProductionJob(
   }
 
   const { error: orderError } =
-    await supabase
-      .from("orders")
-      .update({
-        status: orderStatus,
-      })
-      .eq("id", orderId);
+    await supabase.rpc(
+      "sync_order_from_production",
+      {
+        target_order_id: orderId,
+        requested_status: orderStatus,
+      }
+    );
 
   if (orderError) {
     console.error(
@@ -404,7 +407,9 @@ export async function updateProductionJob(
 export async function updateProductionStage(
   formData
 ) {
-  const { profile } = await requireAdmin();
+  const { profile } = await requirePermission(
+    PERMISSIONS.PRODUCTION_MANAGE
+  );
 
   const stageId = normalizeText(
     formData.get("stage_id")

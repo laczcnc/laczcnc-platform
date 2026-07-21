@@ -2,7 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireAdmin } from "@/core/auth/require-admin";
+import { PERMISSIONS } from "@/core/auth/permissions";
+import {
+  requirePermission,
+  requireRole,
+} from "@/core/auth/require-permission";
 import { createClient } from "@/infrastructure/supabase/server";
 
 const ALLOWED_STATUSES = [
@@ -43,7 +47,7 @@ function getStatusTimestamps(status) {
 export async function updateQuoteRequestStatus(
   formData
 ) {
-  await requireAdmin();
+  await requirePermission(PERMISSIONS.QUOTES_MANAGE);
 
   const requestId = normalizeText(
     formData.get("request_id")
@@ -102,7 +106,7 @@ export async function updateQuoteRequestStatus(
 export async function updateQuoteRequestNotes(
   formData
 ) {
-  await requireAdmin();
+  await requirePermission(PERMISSIONS.QUOTES_MANAGE);
 
   const requestId = normalizeText(
     formData.get("request_id")
@@ -157,7 +161,7 @@ export async function updateQuoteRequestNotes(
 export async function deleteQuoteRequest(
   formData
 ) {
-  await requireAdmin();
+  await requireRole(["admin", "manager"]);
 
   const requestId = normalizeText(
     formData.get("request_id")

@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { requireAdmin } from "@/core/auth/require-admin";
+import { PERMISSIONS } from "@/core/auth/permissions";
+import { requirePermission } from "@/core/auth/require-permission";
 import { createClient } from "@/infrastructure/supabase/server";
 
 import { updateCustomer } from "../../actions";
@@ -16,7 +17,7 @@ export default async function EditCustomerPage({
   params,
   searchParams,
 }) {
-  await requireAdmin();
+  await requirePermission(PERMISSIONS.CUSTOMERS_MANAGE);
 
   const routeParams = await params;
   const queryParams = await searchParams;

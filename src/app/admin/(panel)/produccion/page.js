@@ -1,6 +1,7 @@
 import Link from "next/link";
 
-import { requireAdmin } from "@/core/auth/require-admin";
+import { PERMISSIONS } from "@/core/auth/permissions";
+import { requirePermission } from "@/core/auth/require-permission";
 import { createClient } from "@/infrastructure/supabase/server";
 
 import {
@@ -80,7 +81,7 @@ function getOrderNumber(order) {
 export default async function ProductionPage({
   searchParams,
 }) {
-  await requireAdmin();
+  await requirePermission(PERMISSIONS.PRODUCTION_VIEW);
 
   const queryParams = await searchParams;
 

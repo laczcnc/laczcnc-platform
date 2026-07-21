@@ -1,6 +1,7 @@
 import Link from "next/link";
 
-import { requireAdmin } from "@/core/auth/require-admin";
+import { PERMISSIONS } from "@/core/auth/permissions";
+import { requirePermission } from "@/core/auth/require-permission";
 import { createClient } from "@/infrastructure/supabase/server";
 
 export const metadata = {
@@ -56,7 +57,7 @@ function getCustomerTypeLabel(customerType) {
 export default async function CustomersPage({
   searchParams,
 }) {
-  await requireAdmin();
+  await requirePermission(PERMISSIONS.CUSTOMERS_VIEW);
 
   const queryParams = await searchParams;
 

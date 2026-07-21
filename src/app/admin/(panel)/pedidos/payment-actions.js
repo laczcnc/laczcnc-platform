@@ -2,7 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireAdmin } from "@/core/auth/require-admin";
+import { PERMISSIONS } from "@/core/auth/permissions";
+import {
+  requirePermission,
+  requireRole,
+} from "@/core/auth/require-permission";
 import { createClient } from "@/infrastructure/supabase/server";
 
 const PAYMENT_METHODS = [
@@ -43,7 +47,7 @@ function normalizePaymentDate(value) {
 }
 
 export async function createOrderPayment(formData) {
-  await requireAdmin();
+  await requirePermission(PERMISSIONS.PAYMENTS_MANAGE);
 
   const orderId = normalizeText(
     formData.get("order_id")
@@ -207,7 +211,7 @@ export async function createOrderPayment(formData) {
 }
 
 export async function deleteOrderPayment(formData) {
-  await requireAdmin();
+  await requireRole(["admin", "manager"]);
 
   const paymentId = normalizeText(
     formData.get("payment_id")

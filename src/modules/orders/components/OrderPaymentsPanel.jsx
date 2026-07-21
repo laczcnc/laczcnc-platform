@@ -46,6 +46,8 @@ function getLocalDateTimeValue() {
 export default function OrderPaymentsPanel({
   order,
   payments = [],
+  canCreate = false,
+  canDelete = false,
 }) {
   const paidTotal = payments.reduce(
     (total, payment) =>
@@ -94,6 +96,7 @@ export default function OrderPaymentsPanel({
         </div>
       </div>
 
+      {canCreate ? (
       <form
         action={createOrderPayment}
         className="mt-7 grid gap-5 rounded-2xl border border-zinc-800 bg-zinc-950/60 p-5"
@@ -230,6 +233,7 @@ export default function OrderPaymentsPanel({
           </button>
         </div>
       </form>
+      ) : null}
 
       {payments.length === 0 ? (
         <div className="mt-6 rounded-xl border border-dashed border-zinc-800 px-5 py-10 text-center">
@@ -275,6 +279,7 @@ export default function OrderPaymentsPanel({
                   ) : null}
                 </div>
 
+                {canDelete ? (
                 <details>
                   <summary className="cursor-pointer text-xs font-bold uppercase tracking-wider text-red-400">
                     Eliminar
@@ -304,6 +309,7 @@ export default function OrderPaymentsPanel({
                     </button>
                   </form>
                 </details>
+                ) : null}
               </article>
             ))}
           </div>

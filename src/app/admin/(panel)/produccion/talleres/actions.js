@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireAdmin } from "@/core/auth/require-admin";
+import { PERMISSIONS } from "@/core/auth/permissions";
+import { requirePermission } from "@/core/auth/require-permission";
 import { createClient } from "@/infrastructure/supabase/server";
 
 function normalizeText(value) {
@@ -36,7 +37,7 @@ function revalidateWorkshops() {
 export async function createWorkshop(
   formData
 ) {
-  await requireAdmin();
+  await requirePermission(PERMISSIONS.WORKSHOPS_MANAGE);
 
   const name = normalizeText(
     formData.get("name")
@@ -123,7 +124,7 @@ export async function createWorkshop(
 export async function updateWorkshop(
   formData
 ) {
-  await requireAdmin();
+  await requirePermission(PERMISSIONS.WORKSHOPS_MANAGE);
 
   const workshopId = normalizeText(
     formData.get("workshop_id")
@@ -221,7 +222,7 @@ export async function updateWorkshop(
 export async function toggleWorkshopStatus(
   formData
 ) {
-  await requireAdmin();
+  await requirePermission(PERMISSIONS.WORKSHOPS_MANAGE);
 
   const workshopId = normalizeText(
     formData.get("workshop_id")

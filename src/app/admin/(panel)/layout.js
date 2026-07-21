@@ -1,14 +1,17 @@
-import { requireAdmin } from "@/core/auth/require-admin";
+import { requireAuthenticatedProfile } from "@/core/auth/require-permission";
 import AdminSidebar from "@/shared/components/admin/AdminSidebar";
 import AdminTopbar from "@/shared/components/admin/AdminTopbar";
 
-export default async function AdminPanelLayout({ children }) {
-  const { user, profile } = await requireAdmin();
+export default async function AdminPanelLayout({
+  children,
+}) {
+  const { user, profile } =
+    await requireAuthenticatedProfile();
 
   const displayName =
     profile.full_name?.trim() ||
     user.email?.split("@")[0] ||
-    "Administrador";
+    "Usuario";
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
@@ -21,7 +24,7 @@ export default async function AdminPanelLayout({ children }) {
             email={user.email || ""}
           />
 
-          <main className="min-h-[calc(100vh-5rem)]">
+          <main className="min-h-[calc(100vh-5rem)] min-w-0">
             {children}
           </main>
         </div>

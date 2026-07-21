@@ -1,6 +1,7 @@
 import Link from "next/link";
 
-import { requireAdmin } from "@/core/auth/require-admin";
+import { PERMISSIONS } from "@/core/auth/permissions";
+import { requirePermission } from "@/core/auth/require-permission";
 import { createClient } from "@/infrastructure/supabase/server";
 
 import {
@@ -38,7 +39,7 @@ function normalizeWhatsAppPhone(phone) {
 export default async function WorkshopsPage({
   searchParams,
 }) {
-  await requireAdmin();
+  await requirePermission(PERMISSIONS.WORKSHOPS_VIEW);
 
   const queryParams = await searchParams;
 

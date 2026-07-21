@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireAdmin } from "@/core/auth/require-admin";
+import { PERMISSIONS } from "@/core/auth/permissions";
+import { requirePermission } from "@/core/auth/require-permission";
 import { createClient } from "@/infrastructure/supabase/server";
 
 function normalizeText(value) {
@@ -12,7 +13,7 @@ function normalizeText(value) {
 export async function convertQuoteToCustomer(
   formData
 ) {
-  await requireAdmin();
+  await requirePermission(PERMISSIONS.QUOTES_MANAGE);
 
   const quoteRequestId = normalizeText(
     formData.get("request_id")
@@ -61,7 +62,7 @@ export async function convertQuoteToCustomer(
 export async function convertQuoteToOrder(
   formData
 ) {
-  await requireAdmin();
+  await requirePermission(PERMISSIONS.QUOTES_MANAGE);
 
   const quoteRequestId = normalizeText(
     formData.get("request_id")

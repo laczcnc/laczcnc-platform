@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { requireAdmin } from "@/core/auth/require-admin";
+import { PERMISSIONS } from "@/core/auth/permissions";
+import { requirePermission } from "@/core/auth/require-permission";
 import { createClient } from "@/infrastructure/supabase/server";
 
 const CUSTOMER_TYPES = [
@@ -31,7 +32,7 @@ function isValidEmail(value) {
 }
 
 export async function updateCustomer(formData) {
-  await requireAdmin();
+  await requirePermission(PERMISSIONS.CUSTOMERS_MANAGE);
 
   const customerId = normalizeText(
     formData.get("customer_id")

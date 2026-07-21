@@ -131,9 +131,40 @@ function formatDate(value) {
 export default function OrderWorkflowPanel({
   order,
   history = [],
+  role,
 }) {
-  const availableActions =
+  const roleTransitions = {
+    sales: {
+      draft: ["confirmed", "cancelled"],
+      confirmed: ["draft", "cancelled"],
+      delivered: ["completed"],
+      completed: ["delivered"],
+      cancelled: ["draft"],
+    },
+    production: {
+      confirmed: ["production"],
+      production: ["confirmed", "ready"],
+      ready: ["production"],
+    },
+    delivery: {
+      ready: ["delivered"],
+      delivered: ["ready"],
+    },
+  };
+
+  const allActions =
     STATUS_ACTIONS[order.status] || [];
+
+  const availableActions =
+    role === "admin" || role === "manager"
+      ? allActions
+      : allActions.filter((action) =>
+          (
+            roleTransitions[role]?.[
+              order.status
+            ] || []
+          ).includes(action.status)
+        );
 
   return (
     <section className="mt-8 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 sm:p-6">

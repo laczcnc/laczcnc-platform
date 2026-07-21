@@ -1,6 +1,7 @@
 import Link from "next/link";
 
-import { requireAdmin } from "@/core/auth/require-admin";
+import { PERMISSIONS } from "@/core/auth/permissions";
+import { requirePermission } from "@/core/auth/require-permission";
 import { createClient } from "@/infrastructure/supabase/server";
 
 import {
@@ -124,7 +125,14 @@ function getFilterHref(status) {
 export default async function QuoteRequestsPage({
   searchParams,
 }) {
-  await requireAdmin();
+  const { profile } = await requirePermission(
+    PERMISSIONS.QUOTES_VIEW
+  );
+
+  const canDeleteQuotes = [
+    "admin",
+    "manager",
+  ].includes(profile.role);
 
   const queryParams = await searchParams;
 
@@ -679,6 +687,7 @@ export default async function QuoteRequestsPage({
                       ) : null}
                     </div>
 
+                    {canDeleteQuotes ? (
                     <details className="mt-6 border-t border-zinc-800 pt-4">
                       <summary className="cursor-pointer text-xs font-bold uppercase tracking-wider text-red-400">
                         Eliminar solicitud
@@ -702,6 +711,7 @@ export default async function QuoteRequestsPage({
                         </button>
                       </form>
                     </details>
+                    ) : null}
                   </aside>
                 </div>
               </article>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 
-import { requireAdmin } from "@/core/auth/require-admin";
+import { PERMISSIONS } from "@/core/auth/permissions";
+import { requirePermission } from "@/core/auth/require-permission";
 import { createClient } from "@/infrastructure/supabase/server";
 
 export const metadata = {
@@ -147,7 +148,7 @@ function getOrderNumber(order) {
 }
 
 export default async function AdminDashboardPage() {
-  await requireAdmin();
+  await requirePermission(PERMISSIONS.DASHBOARD_VIEW);
 
   const supabase = await createClient();
 

@@ -2,12 +2,12 @@ import "server-only";
 
 import { redirect } from "next/navigation";
 
-import { createClient } from "@/infrastructure/supabase/server";
 import {
   hasAnyPermission,
   hasPermission,
   normalizeRole,
 } from "@/core/auth/permissions";
+import { createClient } from "@/infrastructure/supabase/server";
 
 async function getAuthenticatedProfile() {
   const supabase = await createClient();
@@ -18,10 +18,15 @@ async function getAuthenticatedProfile() {
   } = await supabase.auth.getUser();
 
   if (userError || !user) {
-    redirect("/login");
+    redirect(
+      "/admin/login?error=session_required"
+    );
   }
 
-  const { data: profile, error: profileError } = await supabase
+  const {
+    data: profile,
+    error: profileError,
+  } = await supabase
     .from("profiles")
     .select(
       `
@@ -41,26 +46,44 @@ async function getAuthenticatedProfile() {
   if (profileError) {
     console.error(
       "No se pudo cargar el perfil del usuario:",
-      profileError
+      {
+        userId: user.id,
+        code: profileError.code,
+        message: profileError.message,
+        details: profileError.details,
+        hint: profileError.hint,
+      }
     );
 
-    redirect("/login");
+    await supabase.auth.signOut();
+
+    redirect(
+      "/admin/login?error=profile_not_found"
+    );
   }
 
   if (!profile) {
-    redirect("/login");
+    await supabase.auth.signOut();
+
+    redirect(
+      "/admin/login?error=profile_not_found"
+    );
   }
 
   if (profile.is_active !== true) {
     await supabase.auth.signOut();
-    redirect("/login?error=inactive");
+
+    redirect("/admin/login?error=inactive");
   }
 
   const role = normalizeRole(profile.role);
 
   if (!role) {
     await supabase.auth.signOut();
-    redirect("/login?error=invalid_role");
+
+    redirect(
+      "/admin/login?error=invalid_role"
+    );
   }
 
   return {
@@ -77,18 +100,33 @@ export async function requireAuthenticatedProfile() {
   return getAuthenticatedProfile();
 }
 
-export async function requirePermission(permission) {
-  const session = await getAuthenticatedProfile();
+export async function requirePermission(
+  permission
+) {
+  const session =
+    await getAuthenticatedProfile();
 
-  if (!hasPermission(session.profile.role, permission)) {
-    redirect("/admin?error=forbidden");
+  if (
+    !hasPermission(
+      session.profile.role,
+      permission
+    )
+  ) {
+    redirect(
+      `/admin/sin-acceso?permiso=${encodeURIComponent(
+        permission || "unknown"
+      )}`
+    );
   }
 
   return session;
 }
 
-export async function requireAnyPermission(permissions = []) {
-  const session = await getAuthenticatedProfile();
+export async function requireAnyPermission(
+  permissions = []
+) {
+  const session =
+    await getAuthenticatedProfile();
 
   if (
     !hasAnyPermission(
@@ -96,14 +134,17 @@ export async function requireAnyPermission(permissions = []) {
       permissions
     )
   ) {
-    redirect("/admin?error=forbidden");
+    redirect("/admin/sin-acceso");
   }
 
   return session;
 }
 
-export async function requireRole(allowedRoles = []) {
-  const session = await getAuthenticatedProfile();
+export async function requireRole(
+  allowedRoles = []
+) {
+  const session =
+    await getAuthenticatedProfile();
 
   const normalizedAllowedRoles = allowedRoles
     .map((role) => normalizeRole(role))
@@ -114,7 +155,7 @@ export async function requireRole(allowedRoles = []) {
       session.profile.role
     )
   ) {
-    redirect("/admin?error=forbidden");
+    redirect("/admin/sin-acceso");
   }
 
   return session;

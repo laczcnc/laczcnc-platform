@@ -1,6 +1,7 @@
 import Link from "next/link";
 
-import { requireAdmin } from "@/core/auth/require-admin";
+import { PERMISSIONS } from "@/core/auth/permissions";
+import { requirePermission } from "@/core/auth/require-permission";
 import { createClient } from "@/infrastructure/supabase/server";
 
 export const metadata = {
@@ -98,7 +99,17 @@ function normalizeWhatsAppPhone(phone) {
 export default async function OrdersPage({
   searchParams,
 }) {
-  await requireAdmin();
+  const { profile } = await requirePermission(
+    PERMISSIONS.ORDERS_VIEW
+  );
+
+  const canManageOrders = [
+    "admin",
+    "manager",
+    "sales",
+  ].includes(profile.role);
+
+  const canViewFinancials = canManageOrders;
 
   const queryParams = await searchParams;
 
@@ -403,6 +414,7 @@ export default async function OrdersPage({
                     </p>
                   </div>
 
+                  {canViewFinancials ? (
                   <div>
                     <p className="text-xs font-bold uppercase tracking-wider text-zinc-600">
                       Precio unitario
@@ -414,7 +426,9 @@ export default async function OrdersPage({
                       )}
                     </p>
                   </div>
+                  ) : null}
 
+                  {canViewFinancials ? (
                   <div>
                     <p className="text-xs font-bold uppercase tracking-wider text-zinc-600">
                       Total
@@ -426,7 +440,9 @@ export default async function OrdersPage({
                       )}
                     </p>
                   </div>
+                  ) : null}
 
+                  {canViewFinancials ? (
                   <div>
                     <p className="text-xs font-bold uppercase tracking-wider text-zinc-600">
                       Saldo pendiente
@@ -438,7 +454,9 @@ export default async function OrdersPage({
                       )}
                     </p>
                   </div>
+                  ) : null}
 
+                  {canViewFinancials ? (
                   <div>
                     <p className="text-xs font-bold uppercase tracking-wider text-zinc-600">
                       Descuento
@@ -450,7 +468,9 @@ export default async function OrdersPage({
                       )}
                     </p>
                   </div>
+                  ) : null}
 
+                  {canViewFinancials ? (
                   <div>
                     <p className="text-xs font-bold uppercase tracking-wider text-zinc-600">
                       Adelanto
@@ -462,6 +482,7 @@ export default async function OrdersPage({
                       )}
                     </p>
                   </div>
+                  ) : null}
 
                   <div>
                     <p className="text-xs font-bold uppercase tracking-wider text-zinc-600">
@@ -528,10 +549,13 @@ export default async function OrdersPage({
                     href={`/admin/pedidos/${order.id}/editar`}
                     className="rounded-xl bg-orange-500 px-4 py-2 text-sm font-black text-zinc-950 transition hover:bg-orange-400"
                   >
-                    Editar pedido
+                    {canManageOrders
+                      ? "Editar pedido"
+                      : "Abrir pedido"}
                   </Link>
 
-                  {order.customers?.id ? (
+                  {order.customers?.id &&
+                  canManageOrders ? (
                     <Link
                       href={`/admin/clientes/${order.customers.id}/editar`}
                       className="rounded-xl border border-cyan-500/30 px-4 py-2 text-sm font-black text-cyan-300 transition hover:bg-cyan-500 hover:text-zinc-950"

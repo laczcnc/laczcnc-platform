@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { requireAdmin } from "@/core/auth/require-admin";
+import { PERMISSIONS } from "@/core/auth/permissions";
+import { requirePermission } from "@/core/auth/require-permission";
 import { createClient } from "@/infrastructure/supabase/server";
 import OrderEditForm from "@/modules/orders/components/OrderEditForm";
 import OrderPaymentsPanel from "@/modules/orders/components/OrderPaymentsPanel";
@@ -19,7 +20,22 @@ export default async function EditOrderPage({
   params,
   searchParams,
 }) {
-  await requireAdmin();
+  const { profile } = await requirePermission(
+    PERMISSIONS.ORDERS_VIEW
+  );
+
+  const canManageOrder = [
+    "admin",
+    "manager",
+    "sales",
+  ].includes(profile.role);
+
+  const canManagePayments = canManageOrder;
+
+  const canDeletePayments = [
+    "admin",
+    "manager",
+  ].includes(profile.role);
 
   const routeParams = await params;
   const queryParams = await searchParams;
@@ -181,7 +197,7 @@ export default async function EditOrderPage({
         </div>
 
         <div className="flex flex-wrap gap-3">
-          {order.customer_id ? (
+          {order.customer_id && canManageOrder ? (
             <Link
               href={`/admin/clientes/${order.customer_id}/editar`}
               className="rounded-xl border border-cyan-500/30 px-5 py-3 text-sm font-black text-cyan-300 transition hover:bg-cyan-500 hover:text-zinc-950"
@@ -190,6 +206,7 @@ export default async function EditOrderPage({
             </Link>
           ) : null}
 
+          {canManageOrder ? (
           <Link
             href={`/admin/pedidos/${order.id}/comprobante`}
             target="_blank"
@@ -197,6 +214,7 @@ export default async function EditOrderPage({
           >
             Ver comprobante
           </Link>
+          ) : null}
 
           <Link
             href="/admin/pedidos"
@@ -218,17 +236,24 @@ export default async function EditOrderPage({
       <OrderWorkflowPanel
         order={order}
         history={history || []}
+        role={profile.role}
       />
 
-      <OrderEditForm
+      {canManageOrder ? (
+        <OrderEditForm
         order={order}
         action={updateOrder}
-      />
+        />
+      ) : null}
 
-      <OrderPaymentsPanel
-        order={order}
-        payments={payments || []}
-      />
+      {canManagePayments ? (
+        <OrderPaymentsPanel
+          order={order}
+          payments={payments || []}
+          canCreate={canManagePayments}
+          canDelete={canDeletePayments}
+        />
+      ) : null}
     </div>
   );
 }

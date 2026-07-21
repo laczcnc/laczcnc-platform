@@ -1,48 +1,50 @@
 import Link from "next/link";
 
 import { requireAdmin } from "@/core/auth/require-admin";
-import { createClient } from "@/infrastructure/supabase/server";
+import { createAdminClient } from "@/infrastructure/supabase/admin";
 
-import {
-  updateUserProfile,
-} from "./actions";
+import { updateUserProfile } from "./actions";
+import UserSecurityActions from "./UserSecurityActions";
 
 export const metadata = {
-  title: "Usuarios",
+  title: "Usuarios | LaczCNC",
 };
 
 export const dynamic = "force-dynamic";
 
-const ROLE_LABELS = {
+const roleLabels = {
   admin: "Administrador",
   manager: "Gerente",
   sales: "Ventas",
   production: "Producción",
-  delivery: "Entregas",
+  delivery: "Reparto",
 };
 
-const ROLE_STYLES = {
-  admin:
-    "border-orange-500/30 bg-orange-500/10 text-orange-300",
-  manager:
-    "border-violet-500/30 bg-violet-500/10 text-violet-300",
-  sales:
-    "border-blue-500/30 bg-blue-500/10 text-blue-300",
-  production:
-    "border-cyan-500/30 bg-cyan-500/10 text-cyan-300",
-  delivery:
-    "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
+const successMessages = {
+  created: "Usuario creado correctamente.",
+  updated: "Perfil actualizado correctamente.",
+  password: "Contraseña actualizada correctamente.",
+  deleted: "Usuario eliminado correctamente.",
 };
 
-const EVENT_LABELS = {
-  role_changed: "Rol modificado",
-  status_changed: "Estado modificado",
-  department_changed:
-    "Área modificada",
-  commission_changed:
-    "Comisión modificada",
-  profile_updated:
-    "Perfil actualizado",
+const inputStyle = {
+  width: "100%",
+  minHeight: 44,
+  border: "1px solid #3f3f46",
+  borderRadius: 10,
+  background: "#09090b",
+  color: "#fafafa",
+  padding: "0 13px",
+  fontSize: 13,
+  outline: "none",
+};
+
+const labelStyle = {
+  display: "grid",
+  gap: 7,
+  color: "#d4d4d8",
+  fontSize: 12,
+  fontWeight: 800,
 };
 
 function formatDate(value) {
@@ -50,436 +52,443 @@ function formatDate(value) {
     return "Sin fecha";
   }
 
-  return new Intl.DateTimeFormat("es-PE", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "America/Lima",
-  }).format(new Date(value));
+  try {
+    return new Intl.DateTimeFormat("es-PE", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(new Date(value));
+  } catch {
+    return "Fecha inválida";
+  }
 }
 
-function formatEventValue(
-  value,
-  eventType
-) {
-  if (
-    value === null ||
-    value === undefined ||
-    value === ""
-  ) {
-    return "Sin definir";
-  }
+function getInitials(name) {
+  const parts = String(name || "U")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
 
-  if (eventType === "role_changed") {
-    return ROLE_LABELS[value] || value;
-  }
-
-  if (
-    eventType === "status_changed"
-  ) {
-    return value === "true"
-      ? "Activo"
-      : "Inactivo";
-  }
-
-  if (
-    eventType ===
-    "commission_changed"
-  ) {
-    return `${value}%`;
-  }
-
-  return value;
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
 }
 
 export default async function UsersPage({
   searchParams,
 }) {
-  const { user } = await requireAdmin();
+  const { user: currentUser } =
+    await requireAdmin();
 
-  const queryParams = await searchParams;
+  const params = await searchParams;
+  const success = String(params?.success ?? "");
+  const error = String(params?.error ?? "");
 
-  const selectedRole =
-    typeof queryParams?.rol === "string"
-      ? queryParams.rol
-      : null;
-
-  const selectedStatus =
-    typeof queryParams?.estado === "string"
-      ? queryParams.estado
-      : "active";
-
-  const supabase = await createClient();
-
-  let profilesQuery = supabase
-    .from("profiles")
-    .select(`
-      id,
-      full_name,
-      role,
-      is_active,
-      phone,
-      job_title,
-      department,
-      commission_rate,
-      notes,
-      updated_at
-    `)
-    .order("is_active", {
-      ascending: false,
-    })
-    .order("full_name", {
-      ascending: true,
-    });
-
-  if (
-    selectedRole &&
-    Object.prototype.hasOwnProperty.call(
-      ROLE_LABELS,
-      selectedRole
-    )
-  ) {
-    profilesQuery = profilesQuery.eq(
-      "role",
-      selectedRole
-    );
-  }
-
-  if (selectedStatus === "active") {
-    profilesQuery = profilesQuery.eq(
-      "is_active",
-      true
-    );
-  }
-
-  if (selectedStatus === "inactive") {
-    profilesQuery = profilesQuery.eq(
-      "is_active",
-      false
-    );
-  }
+  const adminClient = createAdminClient();
 
   const [
-    profilesResponse,
-    eventsResponse,
+    { data: profiles, error: profilesError },
+    { data: authData, error: authError },
   ] = await Promise.all([
-    profilesQuery,
-
-    supabase
-      .from("profile_events")
-      .select(`
-        id,
-        profile_id,
-        event_type,
-        previous_value,
-        new_value,
-        notes,
-        created_at,
-        target_profile:profiles!profile_events_profile_id_fkey (
+    adminClient
+      .from("profiles")
+      .select(
+        `
           id,
-          full_name
-        ),
-        created_profile:profiles!profile_events_created_by_fkey (
-          id,
-          full_name
-        )
-      `)
+          full_name,
+          role,
+          is_active,
+          phone,
+          job_title,
+          department,
+          commission_rate,
+          notes,
+          created_at,
+          updated_at
+        `
+      )
       .order("created_at", {
         ascending: false,
-      })
-      .limit(20),
+      }),
+
+    adminClient.auth.admin.listUsers({
+      page: 1,
+      perPage: 1000,
+    }),
   ]);
 
-  if (profilesResponse.error) {
-    console.error(
-      "Error cargando usuarios:",
-      profilesResponse.error
-    );
-  }
+  const authUsers = authData?.users ?? [];
 
-  if (eventsResponse.error) {
-    console.error(
-      "Error cargando historial:",
-      eventsResponse.error
-    );
-  }
+  const authById = new Map(
+    authUsers.map((authUser) => [
+      authUser.id,
+      authUser,
+    ])
+  );
 
-  const profiles =
-    profilesResponse.data || [];
+  const users = (profiles ?? []).map((profile) => {
+    const authUser = authById.get(profile.id);
 
-  const events =
-    eventsResponse.data || [];
-
-  const activeCount = profiles.filter(
-    (profile) => profile.is_active
-  ).length;
-
-  const adminCount = profiles.filter(
-    (profile) =>
-      profile.role === "admin" &&
-      profile.is_active
-  ).length;
-
-  const salesCount = profiles.filter(
-    (profile) =>
-      profile.role === "sales" &&
-      profile.is_active
-  ).length;
+    return {
+      ...profile,
+      email: authUser?.email ?? "Correo no disponible",
+      lastSignInAt:
+        authUser?.last_sign_in_at ?? null,
+      emailConfirmedAt:
+        authUser?.email_confirmed_at ?? null,
+    };
+  });
 
   return (
-    <div className="px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
-      <section className="flex flex-col justify-between gap-5 xl:flex-row xl:items-end">
+    <main
+      style={{
+        width: "100%",
+        minWidth: 0,
+        padding: "clamp(20px, 4vw, 48px)",
+        color: "#fafafa",
+      }}
+    >
+      <header className="users-page-header">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-blue-400">
+          <p
+            style={{
+              margin: "0 0 8px",
+              color: "#38bdf8",
+              fontSize: 12,
+              fontWeight: 900,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+            }}
+          >
             Equipo
           </p>
 
-          <h1 className="mt-3 text-3xl font-black text-zinc-50 sm:text-4xl">
+          <h1
+            style={{
+              margin: 0,
+              fontSize: "clamp(28px, 4vw, 42px)",
+              letterSpacing: "-0.04em",
+            }}
+          >
             Usuarios
           </h1>
 
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-500">
-            Administra roles, áreas,
-            comisiones y acceso del equipo.
+          <p
+            style={{
+              maxWidth: 720,
+              margin: "10px 0 0",
+              color: "#a1a1aa",
+              lineHeight: 1.6,
+            }}
+          >
+            Crea cuentas, administra roles, activa o
+            desactiva accesos y cambia credenciales.
           </p>
         </div>
 
-        <a
-          href="https://supabase.com/dashboard"
-          target="_blank"
-          rel="noreferrer"
-          className="rounded-xl bg-blue-500 px-5 py-3 text-center text-sm font-black text-white transition hover:bg-blue-400"
+        <Link
+          href="/admin/usuarios/nuevo"
+          style={{
+            display: "inline-flex",
+            minHeight: 48,
+            alignItems: "center",
+            justifyContent: "center",
+            border: "1px solid #0284c7",
+            borderRadius: 12,
+            padding: "0 20px",
+            background: "#0284c7",
+            color: "#ffffff",
+            fontSize: 14,
+            fontWeight: 900,
+            textDecoration: "none",
+            whiteSpace: "nowrap",
+          }}
         >
-          Crear usuario en Supabase
-        </a>
-      </section>
+          Crear usuario
+        </Link>
+      </header>
 
-      <section className="mt-6 rounded-2xl border border-blue-500/20 bg-blue-500/5 p-5">
-        <p className="font-black text-blue-200">
-          ¿Cómo registrar un usuario nuevo?
-        </p>
+      {successMessages[success] ? (
+        <div
+          role="status"
+          style={{
+            marginBottom: 22,
+            border: "1px solid #166534",
+            borderRadius: 13,
+            padding: "15px 17px",
+            background: "rgba(22, 101, 52, 0.16)",
+            color: "#bbf7d0",
+            fontSize: 13,
+            fontWeight: 700,
+          }}
+        >
+          {successMessages[success]}
+        </div>
+      ) : null}
 
-        <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm leading-6 text-blue-300/70">
-          <li>
-            Abre Supabase y selecciona el
-            proyecto LaczCnC.
-          </li>
+      {error ? (
+        <div
+          role="alert"
+          style={{
+            marginBottom: 22,
+            border: "1px solid #7f1d1d",
+            borderRadius: 13,
+            padding: "15px 17px",
+            background: "rgba(127, 29, 29, 0.18)",
+            color: "#fecaca",
+            fontSize: 13,
+            fontWeight: 700,
+            lineHeight: 1.6,
+          }}
+        >
+          {error}
+        </div>
+      ) : null}
 
-          <li>
-            Entra en Authentication →
-            Users.
-          </li>
+      {profilesError || authError ? (
+        <div
+          role="alert"
+          style={{
+            marginBottom: 22,
+            border: "1px solid #854d0e",
+            borderRadius: 13,
+            padding: "15px 17px",
+            background: "rgba(133, 77, 14, 0.16)",
+            color: "#fde68a",
+            fontSize: 13,
+            lineHeight: 1.6,
+          }}
+        >
+          {profilesError
+            ? `No se pudieron cargar los perfiles: ${profilesError.message}`
+            : `No se pudieron cargar los correos: ${authError.message}`}
+        </div>
+      ) : null}
 
-          <li>
-            Pulsa Add user → Create new
-            user.
-          </li>
+      <section
+        style={{
+          display: "grid",
+          gridTemplateColumns:
+            "repeat(auto-fit, minmax(210px, 1fr))",
+          gap: 14,
+          marginBottom: 24,
+        }}
+      >
+        <article style={summaryCardStyle}>
+          <span style={summaryLabelStyle}>
+            Usuarios registrados
+          </span>
 
-          <li>
-            Regresa a esta página y asigna
-            su rol y área.
-          </li>
-        </ol>
-      </section>
+          <strong style={summaryValueStyle}>
+            {users.length}
+          </strong>
+        </article>
 
-      <section className="mt-8 grid gap-4 sm:grid-cols-3">
-        <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-5">
-          <p className="text-sm font-bold text-zinc-500">
+        <article style={summaryCardStyle}>
+          <span style={summaryLabelStyle}>
             Usuarios activos
-          </p>
+          </span>
 
-          <p className="mt-2 text-4xl font-black text-emerald-300">
-            {activeCount}
-          </p>
-        </div>
+          <strong style={summaryValueStyle}>
+            {
+              users.filter(
+                (profile) =>
+                  profile.is_active === true
+              ).length
+            }
+          </strong>
+        </article>
 
-        <div className="rounded-2xl border border-orange-500/20 bg-orange-500/5 p-5">
-          <p className="text-sm font-bold text-zinc-500">
+        <article style={summaryCardStyle}>
+          <span style={summaryLabelStyle}>
             Administradores
-          </p>
+          </span>
 
-          <p className="mt-2 text-4xl font-black text-orange-300">
-            {adminCount}
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-blue-500/20 bg-blue-500/5 p-5">
-          <p className="text-sm font-bold text-zinc-500">
-            Vendedores
-          </p>
-
-          <p className="mt-2 text-4xl font-black text-blue-300">
-            {salesCount}
-          </p>
-        </div>
+          <strong style={summaryValueStyle}>
+            {
+              users.filter(
+                (profile) =>
+                  profile.role === "admin"
+              ).length
+            }
+          </strong>
+        </article>
       </section>
 
-      <section className="mt-8">
-        <div className="flex gap-2 overflow-x-auto pb-3">
-          <Link
-            href="/admin/usuarios?estado=active"
-            className={[
-              "shrink-0 rounded-full border px-4 py-2 text-sm font-bold",
-              selectedStatus === "active" &&
-              !selectedRole
-                ? "border-blue-500 bg-blue-500 text-white"
-                : "border-zinc-700 bg-zinc-900 text-zinc-400",
-            ].join(" ")}
-          >
-            Activos
-          </Link>
+      {users.length === 0 ? (
+        <section
+          style={{
+            border: "1px dashed #3f3f46",
+            borderRadius: 16,
+            padding: 40,
+            color: "#a1a1aa",
+            textAlign: "center",
+          }}
+        >
+          No existen usuarios registrados.
+        </section>
+      ) : (
+        <section
+          style={{
+            display: "grid",
+            gap: 18,
+          }}
+        >
+          {users.map((profile) => {
+            const isCurrentUser =
+              profile.id === currentUser.id;
 
-          <Link
-            href="/admin/usuarios?estado=inactive"
-            className={[
-              "shrink-0 rounded-full border px-4 py-2 text-sm font-bold",
-              selectedStatus === "inactive"
-                ? "border-blue-500 bg-blue-500 text-white"
-                : "border-zinc-700 bg-zinc-900 text-zinc-400",
-            ].join(" ")}
-          >
-            Inactivos
-          </Link>
-
-          <Link
-            href="/admin/usuarios?estado=all"
-            className={[
-              "shrink-0 rounded-full border px-4 py-2 text-sm font-bold",
-              selectedStatus === "all" &&
-              !selectedRole
-                ? "border-blue-500 bg-blue-500 text-white"
-                : "border-zinc-700 bg-zinc-900 text-zinc-400",
-            ].join(" ")}
-          >
-            Todos
-          </Link>
-
-          {Object.entries(
-            ROLE_LABELS
-          ).map(([role, label]) => (
-            <Link
-              key={role}
-              href={`/admin/usuarios?estado=all&rol=${role}`}
-              className={[
-                "shrink-0 rounded-full border px-4 py-2 text-sm font-bold",
-                selectedRole === role
-                  ? "border-blue-500 bg-blue-500 text-white"
-                  : "border-zinc-700 bg-zinc-900 text-zinc-400",
-              ].join(" ")}
-            >
-              {label}
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      {profilesResponse.error ? (
-        <div className="mt-8 rounded-2xl border border-red-500/30 bg-red-500/10 p-5">
-          <p className="font-bold text-red-300">
-            No se pudieron cargar los usuarios.
-          </p>
-        </div>
-      ) : null}
-
-      {!profilesResponse.error &&
-      profiles.length === 0 ? (
-        <div className="mt-8 rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/30 px-6 py-14 text-center">
-          <p className="font-black text-zinc-300">
-            No existen usuarios para este
-            filtro.
-          </p>
-        </div>
-      ) : null}
-
-      <section className="mt-8 grid gap-6">
-        {profiles.map((profile) => {
-          const isCurrentUser =
-            profile.id === user.id;
-
-          return (
-            <article
-              key={profile.id}
-              className={[
-                "rounded-2xl border bg-zinc-900/60 p-5 sm:p-6",
-                profile.is_active
-                  ? "border-zinc-800"
-                  : "border-red-500/20 opacity-70",
-              ].join(" ")}
-            >
-              <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-start">
-                <div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <span
-                      className={[
-                        "rounded-full border px-3 py-1 text-xs font-black uppercase",
-                        ROLE_STYLES[
-                          profile.role
-                        ] ||
-                          ROLE_STYLES.sales,
-                      ].join(" ")}
+            return (
+              <article
+                key={profile.id}
+                style={{
+                  overflow: "hidden",
+                  border: "1px solid #27272a",
+                  borderRadius: 18,
+                  background: "#111113",
+                }}
+              >
+                <div className="user-card-header">
+                  <div
+                    style={{
+                      display: "flex",
+                      minWidth: 0,
+                      alignItems: "center",
+                      gap: 13,
+                    }}
+                  >
+                    <div
+                      aria-hidden="true"
+                      style={{
+                        display: "grid",
+                        width: 46,
+                        minWidth: 46,
+                        height: 46,
+                        placeItems: "center",
+                        border: "1px solid #3f3f46",
+                        borderRadius: 13,
+                        background: "#18181b",
+                        color: "#7dd3fc",
+                        fontSize: 13,
+                        fontWeight: 950,
+                      }}
                     >
-                      {ROLE_LABELS[
-                        profile.role
-                      ] || profile.role}
+                      {getInitials(profile.full_name)}
+                    </div>
+
+                    <div style={{ minWidth: 0 }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          alignItems: "center",
+                          gap: 8,
+                        }}
+                      >
+                        <strong
+                          style={{
+                            overflow: "hidden",
+                            color: "#fafafa",
+                            fontSize: 16,
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {profile.full_name ||
+                            "Sin nombre"}
+                        </strong>
+
+                        {isCurrentUser ? (
+                          <span
+                            style={{
+                              border:
+                                "1px solid #075985",
+                              borderRadius: 999,
+                              padding: "3px 8px",
+                              background:
+                                "rgba(14, 165, 233, 0.12)",
+                              color: "#7dd3fc",
+                              fontSize: 10,
+                              fontWeight: 900,
+                              textTransform:
+                                "uppercase",
+                            }}
+                          >
+                            Tu cuenta
+                          </span>
+                        ) : null}
+                      </div>
+
+                      <div
+                        style={{
+                          marginTop: 4,
+                          overflow: "hidden",
+                          color: "#a1a1aa",
+                          fontSize: 13,
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {profile.email}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      justifyContent: "flex-end",
+                      gap: 8,
+                    }}
+                  >
+                    <span
+                      style={{
+                        border: "1px solid #3f3f46",
+                        borderRadius: 999,
+                        padding: "6px 10px",
+                        background: "#18181b",
+                        color: "#d4d4d8",
+                        fontSize: 11,
+                        fontWeight: 900,
+                      }}
+                    >
+                      {roleLabels[profile.role] ??
+                        profile.role}
                     </span>
 
                     <span
-                      className={[
-                        "rounded-full border px-3 py-1 text-xs font-black uppercase",
-                        profile.is_active
-                          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                          : "border-red-500/30 bg-red-500/10 text-red-300",
-                      ].join(" ")}
+                      style={{
+                        border: profile.is_active
+                          ? "1px solid #166534"
+                          : "1px solid #7f1d1d",
+                        borderRadius: 999,
+                        padding: "6px 10px",
+                        background: profile.is_active
+                          ? "rgba(22, 101, 52, 0.16)"
+                          : "rgba(127, 29, 29, 0.18)",
+                        color: profile.is_active
+                          ? "#bbf7d0"
+                          : "#fecaca",
+                        fontSize: 11,
+                        fontWeight: 900,
+                      }}
                     >
                       {profile.is_active
                         ? "Activo"
                         : "Inactivo"}
                     </span>
-
-                    {isCurrentUser ? (
-                      <span className="rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-xs font-black uppercase text-blue-300">
-                        Tu usuario
-                      </span>
-                    ) : null}
                   </div>
-
-                  <h2 className="mt-4 text-xl font-black text-zinc-100">
-                    {profile.full_name}
-                  </h2>
-
-                  <p className="mt-2 text-sm font-bold text-cyan-300">
-                    {profile.job_title ||
-                      "Cargo no definido"}
-                  </p>
-
-                  <p className="mt-1 text-sm text-zinc-600">
-                    {profile.department ||
-                      "Sin área asignada"}
-                  </p>
                 </div>
-
-                <div className="lg:text-right">
-                  <p className="text-sm font-black text-orange-300">
-                    Comisión:{" "}
-                    {Number(
-                      profile.commission_rate ||
-                        0
-                    )}%
-                  </p>
-
-                  <p className="mt-2 font-mono text-xs text-zinc-700">
-                    {profile.id}
-                  </p>
-                </div>
-              </div>
-
-              <details className="mt-6 rounded-xl border border-zinc-800 bg-zinc-950/50">
-                <summary className="cursor-pointer px-5 py-4 font-black text-zinc-300">
-                  Editar usuario
-                </summary>
 
                 <form
                   action={updateUserProfile}
-                  className="grid gap-5 border-t border-zinc-800 p-5"
+                  style={{
+                    display: "grid",
+                    gap: 18,
+                    padding:
+                      "clamp(16px, 3vw, 24px)",
+                  }}
                 >
                   <input
                     type="hidden"
@@ -487,260 +496,308 @@ export default async function UsersPage({
                     value={profile.id}
                   />
 
-                  <div className="grid gap-5 md:grid-cols-2">
-                    <div>
-                      <label className="mb-2 block text-sm font-bold text-zinc-300">
-                        Nombre completo
-                      </label>
-
+                  <div className="user-form-grid">
+                    <label style={labelStyle}>
+                      Nombre completo
                       <input
                         name="full_name"
+                        type="text"
                         required
-                        minLength={2}
-                        maxLength={160}
                         defaultValue={
-                          profile.full_name
+                          profile.full_name ?? ""
                         }
-                        className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-zinc-100"
+                        style={inputStyle}
                       />
-                    </div>
+                    </label>
 
-                    <div>
-                      <label className="mb-2 block text-sm font-bold text-zinc-300">
-                        Rol
-                      </label>
-
+                    <label style={labelStyle}>
+                      Rol
                       <select
                         name="role"
-                        defaultValue={
-                          profile.role
-                        }
-                        disabled={
-                          isCurrentUser
-                        }
-                        className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-zinc-100 disabled:opacity-50"
+                        required
+                        defaultValue={profile.role}
+                        style={inputStyle}
+                        disabled={isCurrentUser}
                       >
-                        {Object.entries(
-                          ROLE_LABELS
-                        ).map(
-                          ([
-                            role,
-                            label,
-                          ]) => (
-                            <option
-                              key={role}
-                              value={role}
-                            >
-                              {label}
-                            </option>
-                          )
-                        )}
+                        <option value="admin">
+                          Administrador
+                        </option>
+
+                        <option value="manager">
+                          Gerente
+                        </option>
+
+                        <option value="sales">
+                          Ventas
+                        </option>
+
+                        <option value="production">
+                          Producción
+                        </option>
+
+                        <option value="delivery">
+                          Reparto
+                        </option>
                       </select>
 
                       {isCurrentUser ? (
                         <input
                           type="hidden"
                           name="role"
-                          value={
-                            profile.role
-                          }
+                          value={profile.role}
                         />
                       ) : null}
-                    </div>
-                  </div>
+                    </label>
 
-                  <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-                    <input
-                      name="phone"
-                      type="tel"
-                      maxLength={30}
-                      defaultValue={
-                        profile.phone || ""
-                      }
-                      placeholder="Teléfono"
-                      className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-zinc-100"
-                    />
-
-                    <input
-                      name="job_title"
-                      maxLength={160}
-                      defaultValue={
-                        profile.job_title ||
-                        ""
-                      }
-                      placeholder="Cargo"
-                      className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-zinc-100"
-                    />
-
-                    <input
-                      name="department"
-                      maxLength={120}
-                      defaultValue={
-                        profile.department ||
-                        ""
-                      }
-                      placeholder="Área"
-                      className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-zinc-100"
-                    />
-
-                    <input
-                      name="commission_rate"
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="0.01"
-                      defaultValue={
-                        profile.commission_rate ||
-                        0
-                      }
-                      placeholder="Comisión %"
-                      className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-zinc-100"
-                    />
-                  </div>
-
-                  <textarea
-                    name="notes"
-                    rows={3}
-                    maxLength={5000}
-                    defaultValue={
-                      profile.notes || ""
-                    }
-                    placeholder="Notas internas"
-                    className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-zinc-100"
-                  />
-
-                  <label className="flex items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-                    <input
-                      name="is_active"
-                      type="checkbox"
-                      defaultChecked={
-                        profile.is_active
-                      }
-                      disabled={
-                        isCurrentUser
-                      }
-                      className="h-5 w-5 accent-emerald-500"
-                    />
-
-                    {isCurrentUser ? (
+                    <label style={labelStyle}>
+                      Teléfono
                       <input
-                        type="hidden"
-                        name="is_active"
-                        value="on"
+                        name="phone"
+                        type="text"
+                        defaultValue={
+                          profile.phone ?? ""
+                        }
+                        style={inputStyle}
                       />
-                    ) : null}
+                    </label>
 
-                    <span>
-                      <span className="block font-bold text-zinc-200">
-                        Usuario activo
-                      </span>
+                    <label style={labelStyle}>
+                      Cargo
+                      <input
+                        name="job_title"
+                        type="text"
+                        defaultValue={
+                          profile.job_title ?? ""
+                        }
+                        style={inputStyle}
+                      />
+                    </label>
 
-                      <span className="mt-1 block text-xs text-zinc-600">
-                        Los usuarios inactivos no
-                        deben acceder al panel.
-                      </span>
-                    </span>
+                    <label style={labelStyle}>
+                      Área
+                      <input
+                        name="department"
+                        type="text"
+                        defaultValue={
+                          profile.department ?? ""
+                        }
+                        style={inputStyle}
+                      />
+                    </label>
+
+                    <label style={labelStyle}>
+                      Comisión %
+                      <input
+                        name="commission_rate"
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        defaultValue={
+                          profile.commission_rate ?? 0
+                        }
+                        style={inputStyle}
+                      />
+                    </label>
+                  </div>
+
+                  <label style={labelStyle}>
+                    Notas internas
+                    <textarea
+                      name="notes"
+                      rows={3}
+                      defaultValue={
+                        profile.notes ?? ""
+                      }
+                      style={{
+                        ...inputStyle,
+                        minHeight: 90,
+                        resize: "vertical",
+                        padding: 13,
+                        fontFamily: "inherit",
+                        lineHeight: 1.6,
+                      }}
+                    />
                   </label>
 
-                  <div className="flex justify-end">
+                  <div className="user-form-footer">
+                    <label
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        color: isCurrentUser
+                          ? "#71717a"
+                          : "#d4d4d8",
+                        fontSize: 13,
+                        fontWeight: 800,
+                        cursor: isCurrentUser
+                          ? "not-allowed"
+                          : "pointer",
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        name="is_active"
+                        value="true"
+                        defaultChecked={
+                          profile.is_active === true
+                        }
+                        disabled={isCurrentUser}
+                        style={{
+                          width: 18,
+                          height: 18,
+                          accentColor: "#0284c7",
+                        }}
+                      />
+
+                      {isCurrentUser ? (
+                        <input
+                          type="hidden"
+                          name="is_active"
+                          value="true"
+                        />
+                      ) : null}
+
+                      Usuario activo
+                    </label>
+
                     <button
                       type="submit"
-                      className="rounded-xl bg-blue-500 px-6 py-3 text-sm font-black text-white transition hover:bg-blue-400"
+                      style={{
+                        minHeight: 44,
+                        border:
+                          "1px solid #0284c7",
+                        borderRadius: 10,
+                        padding: "0 18px",
+                        background: "#0284c7",
+                        color: "#ffffff",
+                        cursor: "pointer",
+                        fontSize: 13,
+                        fontWeight: 900,
+                      }}
                     >
-                      Guardar usuario
+                      Guardar perfil
                     </button>
                   </div>
                 </form>
-              </details>
-            </article>
-          );
-        })}
-      </section>
 
-      <section className="mt-12">
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-600">
-          Auditoría
-        </p>
+                <UserSecurityActions
+                  userId={profile.id}
+                  userName={
+                    profile.full_name ||
+                    profile.email
+                  }
+                  isCurrentUser={isCurrentUser}
+                />
 
-        <h2 className="mt-2 text-2xl font-black text-zinc-100">
-          Cambios recientes
-        </h2>
-
-        {eventsResponse.error ? (
-          <div className="mt-6 rounded-2xl border border-red-500/30 bg-red-500/10 p-5">
-            <p className="font-bold text-red-300">
-              No se pudo cargar el historial.
-            </p>
-          </div>
-        ) : null}
-
-        {!eventsResponse.error &&
-        events.length === 0 ? (
-          <div className="mt-6 rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/30 px-6 py-12 text-center">
-            <p className="font-bold text-zinc-400">
-              Todavía no existen cambios
-              registrados.
-            </p>
-          </div>
-        ) : null}
-
-        {events.length > 0 ? (
-          <div className="mt-6 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/50">
-            <div className="divide-y divide-zinc-800">
-              {events.map((event) => (
-                <article
-                  key={event.id}
-                  className="grid gap-4 p-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                <footer
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    justifyContent:
+                      "space-between",
+                    gap: 10,
+                    borderTop:
+                      "1px solid #27272a",
+                    padding: "12px 20px",
+                    background: "#0c0c0e",
+                    color: "#71717a",
+                    fontSize: 11,
+                  }}
                 >
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-wider text-blue-300">
-                      {EVENT_LABELS[
-                        event.event_type
-                      ] ||
-                        event.event_type}
-                    </p>
+                  <span>
+                    Creado:{" "}
+                    {formatDate(profile.created_at)}
+                  </span>
 
-                    <h3 className="mt-2 font-black text-zinc-100">
-                      {event.target_profile
-                        ?.full_name ||
-                        "Usuario eliminado"}
-                    </h3>
+                  <span>
+                    Último ingreso:{" "}
+                    {formatDate(
+                      profile.lastSignInAt
+                    )}
+                  </span>
+                </footer>
+              </article>
+            );
+          })}
+        </section>
+      )}
 
-                    <p className="mt-2 text-sm text-zinc-500">
-                      {formatEventValue(
-                        event.previous_value,
-                        event.event_type
-                      )}{" "}
-                      <span className="px-2 text-zinc-700">
-                        →
-                      </span>
-                      {formatEventValue(
-                        event.new_value,
-                        event.event_type
-                      )}
-                    </p>
-                  </div>
+      <style>{`
+        .users-page-header {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 20px;
+          margin-bottom: 28px;
+        }
 
-                  <div className="sm:text-right">
-                    <p className="text-sm text-zinc-400">
-                      {formatDate(
-                        event.created_at
-                      )}
-                    </p>
+        .user-card-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 18px;
+          border-bottom: 1px solid #27272a;
+          padding: 18px 20px;
+          background: #0c0c0e;
+        }
 
-                    <p className="mt-1 text-xs text-zinc-600">
-                      Por:{" "}
-                      {event.created_profile
-                        ?.full_name ||
-                        "Sistema"}
-                    </p>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </div>
-        ) : null}
-      </section>
-    </div>
+        .user-form-grid {
+          display: grid;
+          grid-template-columns:
+            repeat(3, minmax(0, 1fr));
+          gap: 16px;
+        }
+
+        .user-form-footer {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 14px;
+        }
+
+        @media (max-width: 1100px) {
+          .user-form-grid {
+            grid-template-columns:
+              repeat(2, minmax(0, 1fr));
+          }
+        }
+
+        @media (max-width: 720px) {
+          .users-page-header,
+          .user-card-header,
+          .user-form-footer {
+            align-items: stretch;
+            flex-direction: column;
+          }
+
+          .user-form-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
+    </main>
   );
 }
+
+const summaryCardStyle = {
+  display: "grid",
+  gap: 10,
+  border: "1px solid #27272a",
+  borderRadius: 15,
+  padding: 18,
+  background: "#111113",
+};
+
+const summaryLabelStyle = {
+  color: "#a1a1aa",
+  fontSize: 12,
+  fontWeight: 800,
+};
+
+const summaryValueStyle = {
+  color: "#fafafa",
+  fontSize: 28,
+  letterSpacing: "-0.04em",
+};
