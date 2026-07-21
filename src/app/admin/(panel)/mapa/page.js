@@ -1,6 +1,7 @@
 import Link from "next/link";
 
-import { requireAdmin } from "@/core/auth/require-admin";
+import { PERMISSIONS } from "@/core/auth/permissions";
+import { requirePermission } from "@/core/auth/require-permission";
 import { createClient } from "@/infrastructure/supabase/server";
 
 import MapAdminLoader from "./MapAdminLoader";
@@ -12,7 +13,7 @@ export const metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function MapPage() {
-  await requireAdmin();
+  await requirePermission(PERMISSIONS.MAP_VIEW);
 
   const supabase = await createClient();
 

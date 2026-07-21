@@ -1,6 +1,7 @@
 import Link from "next/link";
 
-import { requireAdmin } from "@/core/auth/require-admin";
+import { PERMISSIONS } from "@/core/auth/permissions";
+import { requirePermission } from "@/core/auth/require-permission";
 import { createClient } from "@/infrastructure/supabase/server";
 
 import {
@@ -116,7 +117,21 @@ function normalizeWhatsAppPhone(phone) {
 export default async function DeliveriesPage({
   searchParams,
 }) {
-  await requireAdmin();
+  const { profile } = await requirePermission(
+    PERMISSIONS.DELIVERIES_VIEW
+  );
+
+  const canManageDeliveries = [
+    "admin",
+    "manager",
+    "delivery",
+  ].includes(profile.role);
+
+  const canViewCosts = [
+    "admin",
+    "manager",
+    "sales",
+  ].includes(profile.role);
 
   const queryParams = await searchParams;
 
@@ -342,6 +357,7 @@ export default async function DeliveriesPage({
         </div>
       </section>
 
+      {canManageDeliveries ? (
       <section className="mt-8 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 sm:p-6">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-orange-400">
           Nueva operación
@@ -466,6 +482,7 @@ export default async function DeliveriesPage({
                 className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm text-zinc-100"
               />
 
+              {canViewCosts ? (
               <input
                 name="delivery_cost"
                 type="number"
@@ -475,6 +492,7 @@ export default async function DeliveriesPage({
                 placeholder="Costo de entrega"
                 className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm text-zinc-100"
               />
+              ) : null}
             </div>
 
             <textarea
@@ -493,6 +511,7 @@ export default async function DeliveriesPage({
           </form>
         )}
       </section>
+      ) : null}
 
       <section className="mt-8">
         <div className="flex gap-2 overflow-x-auto pb-3">
@@ -633,11 +652,13 @@ export default async function DeliveriesPage({
                       "Sin transportista"}
                   </p>
 
+                  {canViewCosts ? (
                   <p className="mt-2 text-sm font-black text-orange-300">
                     {formatMoney(
                       delivery.delivery_cost
                     )}
                   </p>
+                  ) : null}
                 </div>
               </div>
 
@@ -679,7 +700,7 @@ export default async function DeliveriesPage({
               </div>
 
               <div className="mt-5 flex flex-wrap gap-3">
-                {nextStatus ? (
+                {nextStatus && canManageDeliveries ? (
                   <form
                     action={
                       changeDeliveryStatus
@@ -741,6 +762,7 @@ export default async function DeliveriesPage({
                 ) : null}
               </div>
 
+              {canManageDeliveries ? (
               <details className="mt-6 rounded-xl border border-zinc-800 bg-zinc-950/40">
                 <summary className="cursor-pointer px-5 py-4 font-black text-zinc-300">
                   Editar logística y comprobante
@@ -879,6 +901,7 @@ export default async function DeliveriesPage({
                   </div>
 
                   <div className="grid gap-5 md:grid-cols-2">
+                    {canViewCosts ? (
                     <input
                       name="delivery_cost"
                       type="number"
@@ -891,6 +914,7 @@ export default async function DeliveriesPage({
                       placeholder="Costo"
                       className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm text-zinc-100"
                     />
+                    ) : null}
 
                     <input
                       name="proof_url"
@@ -932,6 +956,7 @@ export default async function DeliveriesPage({
                   </div>
                 </form>
               </details>
+              ) : null}
             </article>
           );
         })}

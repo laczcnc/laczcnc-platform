@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireAdmin } from "@/core/auth/require-admin";
+import { PERMISSIONS } from "@/core/auth/permissions";
+import { requirePermission } from "@/core/auth/require-permission";
 import { createClient } from "@/infrastructure/supabase/server";
 
 const LOCATION_TYPES = [
@@ -52,7 +53,7 @@ function revalidateMap() {
 export async function createMapLocation(
   formData
 ) {
-  await requireAdmin();
+  await requirePermission(PERMISSIONS.MAP_MANAGE);
 
   const name = normalizeText(
     formData.get("name")
@@ -195,7 +196,7 @@ export async function createMapLocation(
 export async function updateMapLocation(
   formData
 ) {
-  await requireAdmin();
+  await requirePermission(PERMISSIONS.MAP_MANAGE);
 
   const locationId = normalizeText(
     formData.get("location_id")
@@ -325,7 +326,9 @@ export async function updateMapLocation(
 export async function changeMapLocationStatus(
   formData
 ) {
-  const { profile } = await requireAdmin();
+  const { profile } = await requirePermission(
+    PERMISSIONS.MAP_MANAGE
+  );
 
   const locationId = normalizeText(
     formData.get("location_id")
@@ -418,7 +421,7 @@ export async function changeMapLocationStatus(
 export async function toggleMapLocation(
   formData
 ) {
-  await requireAdmin();
+  await requirePermission(PERMISSIONS.MAP_MANAGE);
 
   const locationId = normalizeText(
     formData.get("location_id")

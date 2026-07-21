@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireAdmin } from "@/core/auth/require-admin";
+import { PERMISSIONS } from "@/core/auth/permissions";
+import { requirePermission } from "@/core/auth/require-permission";
 import { createClient } from "@/infrastructure/supabase/server";
 
 const DELIVERY_TYPES = [
@@ -101,7 +102,9 @@ function revalidateDeliveries(orderId = null) {
 export async function createDelivery(
   formData
 ) {
-  await requireAdmin();
+  const { profile } = await requirePermission(
+    PERMISSIONS.DELIVERIES_MANAGE
+  );
 
   const orderId = normalizeText(
     formData.get("order_id")
@@ -141,9 +144,14 @@ export async function createDelivery(
       formData.get("scheduled_date")
     );
 
-  const deliveryCost = normalizeMoney(
+  const requestedDeliveryCost = normalizeMoney(
     formData.get("delivery_cost")
   );
+
+  const deliveryCost =
+    profile.role === "delivery"
+      ? 0
+      : requestedDeliveryCost;
 
   const internalNotes =
     normalizeOptionalText(
@@ -314,7 +322,9 @@ export async function createDelivery(
 export async function updateDelivery(
   formData
 ) {
-  await requireAdmin();
+  const { profile } = await requirePermission(
+    PERMISSIONS.DELIVERIES_MANAGE
+  );
 
   const deliveryId = normalizeText(
     formData.get("delivery_id")
@@ -427,7 +437,9 @@ export async function updateDelivery(
       tracking_number: trackingNumber,
       tracking_url: trackingUrl,
       scheduled_date: scheduledDate,
-      delivery_cost: deliveryCost,
+      ...(profile.role === "delivery"
+        ? {}
+        : { delivery_cost: deliveryCost }),
       internal_notes: internalNotes,
       delivery_notes: deliveryNotes,
       proof_url: proofUrl,
@@ -456,7 +468,9 @@ export async function updateDelivery(
 export async function changeDeliveryStatus(
   formData
 ) {
-  await requireAdmin();
+  await requirePermission(
+    PERMISSIONS.DELIVERIES_MANAGE
+  );
 
   const deliveryId = normalizeText(
     formData.get("delivery_id")
@@ -542,12 +556,13 @@ export async function changeDeliveryStatus(
   }
 
   const { error: orderError } =
-    await supabase
-      .from("orders")
-      .update({
-        status: orderStatus,
-      })
-      .eq("id", orderId);
+    await supabase.rpc(
+      "sync_order_from_delivery",
+      {
+        target_order_id: orderId,
+        requested_status: orderStatus,
+      }
+    );
 
   if (orderError) {
     console.error(
