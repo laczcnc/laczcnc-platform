@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { requireAdmin } from "@/core/auth/require-admin";
+import { PERMISSIONS } from "@/core/auth/permissions";
+import { requirePermission } from "@/core/auth/require-permission";
 import { createSlug } from "@/modules/catalog/utils/create-slug";
 
 function getText(formData, fieldName) {
@@ -148,7 +149,9 @@ function handleProductDatabaseError(error, errorPath) {
 }
 
 export async function createProduct(formData) {
-  const { user, supabase } = await requireAdmin();
+  const { user, supabase } = await requirePermission(
+    PERMISSIONS.PRODUCTS_MANAGE
+  );
 
   const errorPath = "/admin/productos/nuevo";
   const product = buildProductPayload(formData);
@@ -184,7 +187,9 @@ export async function createProduct(formData) {
 }
 
 export async function updateProduct(formData) {
-  const { supabase } = await requireAdmin();
+  const { supabase } = await requirePermission(
+    PERMISSIONS.PRODUCTS_MANAGE
+  );
 
   const productId = getText(formData, "product_id");
 
@@ -227,7 +232,9 @@ export async function updateProduct(formData) {
 }
 
 export async function toggleProductFlag(formData) {
-  const { supabase } = await requireAdmin();
+  const { supabase } = await requirePermission(
+    PERMISSIONS.PRODUCTS_MANAGE
+  );
 
   const productId = getText(formData, "product_id");
   const field = getText(formData, "field");
@@ -264,7 +271,9 @@ export async function toggleProductFlag(formData) {
 }
 
 export async function deleteProduct(formData) {
-  const { supabase } = await requireAdmin();
+  const { supabase } = await requirePermission(
+    PERMISSIONS.PRODUCTS_MANAGE
+  );
 
   const productId = getText(formData, "product_id");
 
@@ -288,7 +297,9 @@ export async function deleteProduct(formData) {
 }
 
 export async function createCategory(formData) {
-  const { supabase } = await requireAdmin();
+  const { supabase } = await requirePermission(
+    PERMISSIONS.PRODUCTS_MANAGE
+  );
 
   const name = getText(formData, "name");
   const requestedSlug = getText(formData, "slug");
@@ -339,7 +350,9 @@ export async function createCategory(formData) {
 }
 
 export async function updateCategory(formData) {
-  const { supabase } = await requireAdmin();
+  const { supabase } = await requirePermission(
+    PERMISSIONS.PRODUCTS_MANAGE
+  );
 
   const categoryId = getText(formData, "category_id");
   const name = getText(formData, "name");
@@ -384,7 +397,9 @@ export async function updateCategory(formData) {
 }
 
 export async function deleteCategory(formData) {
-  const { supabase } = await requireAdmin();
+  const { supabase } = await requirePermission(
+    PERMISSIONS.PRODUCTS_MANAGE
+  );
 
   const categoryId = getText(formData, "category_id");
 

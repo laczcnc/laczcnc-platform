@@ -91,8 +91,32 @@ export default function AdminSidebar() {
   }, []);
 
   useEffect(() => {
-    setMobileOpen(false);
-  }, [pathname]);
+    if (!mobileOpen) {
+      return undefined;
+    }
+
+    const previousOverflow =
+      document.body.style.overflow;
+
+    document.body.style.overflow = "hidden";
+
+    function closeOnEscape(event) {
+      if (event.key === "Escape") {
+        setMobileOpen(false);
+      }
+    }
+
+    window.addEventListener("keydown", closeOnEscape);
+
+    return () => {
+      document.body.style.overflow =
+        previousOverflow;
+      window.removeEventListener(
+        "keydown",
+        closeOnEscape
+      );
+    };
+  }, [mobileOpen]);
 
   const navigation = useMemo(() => {
     if (!profile?.role) {
@@ -113,7 +137,7 @@ export default function AdminSidebar() {
 
     await supabase.auth.signOut();
 
-    router.replace("/login");
+    router.replace("/admin/login");
     router.refresh();
   }
 
@@ -122,27 +146,12 @@ export default function AdminSidebar() {
       <button
         type="button"
         aria-label="Abrir menú administrativo"
+        aria-expanded={mobileOpen}
+        aria-controls="admin-sidebar"
         onClick={() => setMobileOpen(true)}
         className="admin-mobile-menu-button"
-        style={{
-          position: "fixed",
-          top: 14,
-          left: 14,
-          zIndex: 80,
-          display: "none",
-          width: 42,
-          height: 42,
-          placeItems: "center",
-          border: "1px solid #3f3f46",
-          borderRadius: 11,
-          background: "#09090b",
-          color: "#ffffff",
-          cursor: "pointer",
-          fontSize: 19,
-          fontWeight: 900,
-        }}
       >
-        ☰
+        <span aria-hidden="true">☰</span>
       </button>
 
       {mobileOpen ? (
@@ -151,119 +160,53 @@ export default function AdminSidebar() {
           aria-label="Cerrar menú administrativo"
           onClick={() => setMobileOpen(false)}
           className="admin-mobile-overlay"
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 69,
-            border: 0,
-            background: "rgba(0, 0, 0, 0.72)",
-            cursor: "pointer",
-          }}
         />
       ) : null}
 
       <aside
+        id="admin-sidebar"
         className={
           mobileOpen
             ? "admin-sidebar admin-sidebar-open"
             : "admin-sidebar"
         }
-        style={{
-          position: "sticky",
-          top: 0,
-          zIndex: 70,
-          width: 272,
-          minWidth: 272,
-          height: "100vh",
-          flexShrink: 0,
-          alignSelf: "flex-start",
-          overflow: "hidden",
-          borderRight: "1px solid #27272a",
-          background: "#09090b",
-          color: "#ffffff",
-          transition: "transform 180ms ease",
-        }}
       >
-        <div
-          style={{
-            display: "flex",
-            height: "100%",
-            minHeight: 0,
-            flexDirection: "column",
-          }}
-        >
-          <div
-            style={{
-              flexShrink: 0,
-              borderBottom: "1px solid #27272a",
-              padding: "22px 18px",
-            }}
-          >
+        <div className="admin-sidebar-inner">
+          <div className="admin-sidebar-header">
             <Link
               href="/admin"
-              style={{
-                color: "#ffffff",
-                textDecoration: "none",
-              }}
+              onClick={() => setMobileOpen(false)}
+              className="admin-sidebar-brand"
             >
-              <div
-                style={{
-                  fontSize: 20,
-                  fontWeight: 900,
-                  letterSpacing: "-0.03em",
-                }}
-              >
+              <span className="admin-sidebar-logo">
                 LACZ CNC
-              </div>
+              </span>
 
-              <div
-                style={{
-                  marginTop: 4,
-                  color: "#71717a",
-                  fontSize: 11,
-                  fontWeight: 800,
-                  letterSpacing: "0.14em",
-                  textTransform: "uppercase",
-                }}
-              >
+              <span className="admin-sidebar-caption">
                 Panel administrativo
-              </div>
+              </span>
             </Link>
+
+            <button
+              type="button"
+              aria-label="Cerrar menú"
+              onClick={() => setMobileOpen(false)}
+              className="admin-sidebar-close"
+            >
+              ×
+            </button>
           </div>
 
           <nav
-            style={{
-              display: "grid",
-              minHeight: 0,
-              flex: 1,
-              alignContent: "start",
-              gap: 5,
-              overflowY: "auto",
-              padding: "16px 12px",
-            }}
+            aria-label="Navegación administrativa"
+            className="admin-sidebar-nav"
           >
             {loadingProfile ? (
-              <div
-                style={{
-                  padding: "14px 12px",
-                  color: "#71717a",
-                  fontSize: 13,
-                  fontWeight: 700,
-                }}
-              >
+              <div className="admin-sidebar-message">
                 Cargando menú...
               </div>
             ) : navigation.length === 0 ? (
-              <div
-                style={{
-                  border: "1px solid #27272a",
-                  borderRadius: 12,
-                  padding: 14,
-                  color: "#a1a1aa",
-                  fontSize: 13,
-                  lineHeight: 1.5,
-                }}
-              >
+              <div className="admin-sidebar-empty">
                 No tienes módulos disponibles para
                 este perfil.
               </div>
@@ -278,66 +221,24 @@ export default function AdminSidebar() {
                   <Link
                     key={item.href}
                     href={item.href}
+                    onClick={() => setMobileOpen(false)}
                     aria-current={
                       active ? "page" : undefined
                     }
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns:
-                        "34px minmax(0, 1fr)",
-                      alignItems: "center",
-                      gap: 10,
-                      minHeight: 46,
-                      border: active
-                        ? "1px solid #38bdf8"
-                        : "1px solid transparent",
-                      borderRadius: 12,
-                      padding: "6px 10px",
-                      background: active
-                        ? "rgba(14, 165, 233, 0.14)"
-                        : "transparent",
-                      color: active
-                        ? "#f0f9ff"
-                        : "#d4d4d8",
-                      fontSize: 13,
-                      fontWeight: active ? 900 : 700,
-                      textDecoration: "none",
-                      transition:
-                        "background 150ms ease, border-color 150ms ease",
-                    }}
+                    className={
+                      active
+                        ? "admin-sidebar-link admin-sidebar-link-active"
+                        : "admin-sidebar-link"
+                    }
                   >
                     <span
                       aria-hidden="true"
-                      style={{
-                        display: "grid",
-                        width: 32,
-                        height: 32,
-                        placeItems: "center",
-                        border: active
-                          ? "1px solid rgba(56, 189, 248, 0.6)"
-                          : "1px solid #3f3f46",
-                        borderRadius: 9,
-                        background: active
-                          ? "#0c4a6e"
-                          : "#18181b",
-                        color: active
-                          ? "#7dd3fc"
-                          : "#a1a1aa",
-                        fontSize: 10,
-                        fontWeight: 950,
-                        letterSpacing: "0.04em",
-                      }}
+                      className="admin-sidebar-icon"
                     >
                       {item.shortName}
                     </span>
 
-                    <span
-                      style={{
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
+                    <span className="admin-sidebar-label">
                       {item.name}
                     </span>
                   </Link>
@@ -346,49 +247,14 @@ export default function AdminSidebar() {
             )}
           </nav>
 
-          <div
-            style={{
-              flexShrink: 0,
-              borderTop: "1px solid #27272a",
-              padding: 14,
-              background: "#09090b",
-            }}
-          >
+          <div className="admin-sidebar-footer">
             {profile ? (
-              <div
-                style={{
-                  marginBottom: 12,
-                  border: "1px solid #27272a",
-                  borderRadius: 12,
-                  padding: 12,
-                  background: "#111113",
-                }}
-              >
-                <div
-                  style={{
-                    overflow: "hidden",
-                    color: "#fafafa",
-                    fontSize: 13,
-                    fontWeight: 900,
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
+              <div className="admin-sidebar-profile">
+                <div className="admin-sidebar-name">
                   {profile.full_name || "Usuario"}
                 </div>
 
-                <div
-                  style={{
-                    marginTop: 4,
-                    overflow: "hidden",
-                    color: "#71717a",
-                    fontSize: 11,
-                    fontWeight: 700,
-                    textOverflow: "ellipsis",
-                    textTransform: "uppercase",
-                    whiteSpace: "nowrap",
-                  }}
-                >
+                <div className="admin-sidebar-role">
                   {profile.job_title || profile.role}
                 </div>
               </div>
@@ -398,20 +264,7 @@ export default function AdminSidebar() {
               type="button"
               onClick={handleLogout}
               disabled={loggingOut}
-              style={{
-                width: "100%",
-                minHeight: 42,
-                border: "1px solid #3f3f46",
-                borderRadius: 10,
-                background: "#18181b",
-                color: "#fafafa",
-                cursor: loggingOut
-                  ? "wait"
-                  : "pointer",
-                fontSize: 13,
-                fontWeight: 900,
-                opacity: loggingOut ? 0.7 : 1,
-              }}
+              className="admin-sidebar-logout"
             >
               {loggingOut
                 ? "Cerrando..."
@@ -423,26 +276,288 @@ export default function AdminSidebar() {
 
       <style jsx global>{`
         .admin-mobile-menu-button {
-          display: none !important;
+          position: fixed;
+          top: 11px;
+          left: 12px;
+          z-index: 80;
+          display: none;
+          width: 40px;
+          height: 40px;
+          place-items: center;
+          border: 1px solid #3f3f46;
+          border-radius: 10px;
+          background: #09090b;
+          color: #fafafa;
+          cursor: pointer;
+          font-size: 18px;
+          font-weight: 700;
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+        }
+
+        .admin-mobile-overlay {
+          position: fixed;
+          inset: 0;
+          z-index: 69;
+          border: 0;
+          background: rgba(0, 0, 0, 0.72);
+          cursor: pointer;
+          backdrop-filter: blur(2px);
+        }
+
+        .admin-sidebar {
+          position: sticky;
+          top: 0;
+          z-index: 70;
+          width: 244px;
+          min-width: 244px;
+          height: 100vh;
+          height: 100dvh;
+          flex-shrink: 0;
+          align-self: flex-start;
+          overflow: hidden;
+          border-right: 1px solid #27272a;
+          background: #09090b;
+          color: #fafafa;
+          transition: transform 180ms ease;
+        }
+
+        .admin-sidebar-inner {
+          display: flex;
+          height: 100%;
+          min-height: 0;
+          flex-direction: column;
+        }
+
+        .admin-sidebar-header {
+          position: relative;
+          flex-shrink: 0;
+          border-bottom: 1px solid #27272a;
+          padding: 17px 16px;
+        }
+
+        .admin-sidebar-brand {
+          display: block;
+          color: #fafafa;
+          text-decoration: none;
+        }
+
+        .admin-sidebar-logo {
+          display: block;
+          font-size: 18px;
+          font-weight: 800;
+          letter-spacing: -0.03em;
+        }
+
+        .admin-sidebar-caption {
+          display: block;
+          margin-top: 3px;
+          color: #71717a;
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+        }
+
+        .admin-sidebar-close {
+          position: absolute;
+          top: 12px;
+          right: 12px;
+          display: none;
+          width: 36px;
+          height: 36px;
+          place-items: center;
+          border: 1px solid #3f3f46;
+          border-radius: 9px;
+          background: #18181b;
+          color: #d4d4d8;
+          cursor: pointer;
+          font-size: 23px;
+          line-height: 1;
+        }
+
+        .admin-sidebar-nav {
+          display: grid;
+          min-height: 0;
+          flex: 1;
+          align-content: start;
+          gap: 3px;
+          overflow-y: auto;
+          overscroll-behavior: contain;
+          padding: 11px 9px;
+        }
+
+        .admin-sidebar-message,
+        .admin-sidebar-empty {
+          padding: 12px 10px;
+          color: #71717a;
+          font-size: 12px;
+          font-weight: 600;
+        }
+
+        .admin-sidebar-empty {
+          border: 1px solid #27272a;
+          border-radius: 10px;
+          color: #a1a1aa;
+          line-height: 1.45;
+        }
+
+        .admin-sidebar-link {
+          display: grid;
+          grid-template-columns: 30px minmax(0, 1fr);
+          align-items: center;
+          gap: 9px;
+          min-height: 40px;
+          border: 1px solid transparent;
+          border-radius: 10px;
+          padding: 4px 8px;
+          background: transparent;
+          color: #c4c4cc;
+          font-size: 12.5px;
+          font-weight: 600;
+          text-decoration: none;
+          transition:
+            background 150ms ease,
+            border-color 150ms ease,
+            color 150ms ease;
+        }
+
+        .admin-sidebar-link:hover {
+          background: #18181b;
+          color: #fafafa;
+        }
+
+        .admin-sidebar-link-active {
+          border-color: #0ea5e9;
+          background: rgba(14, 165, 233, 0.13);
+          color: #f0f9ff;
+          font-weight: 700;
+        }
+
+        .admin-sidebar-icon {
+          display: grid;
+          width: 28px;
+          height: 28px;
+          place-items: center;
+          border: 1px solid #3f3f46;
+          border-radius: 8px;
+          background: #18181b;
+          color: #a1a1aa;
+          font-size: 9px;
+          font-weight: 800;
+          letter-spacing: 0.04em;
+        }
+
+        .admin-sidebar-link-active
+          .admin-sidebar-icon {
+          border-color: rgba(56, 189, 248, 0.58);
+          background: #0c4a6e;
+          color: #7dd3fc;
+        }
+
+        .admin-sidebar-label,
+        .admin-sidebar-name,
+        .admin-sidebar-role {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .admin-sidebar-footer {
+          flex-shrink: 0;
+          border-top: 1px solid #27272a;
+          padding: 10px;
+          background: #09090b;
+        }
+
+        .admin-sidebar-profile {
+          margin-bottom: 8px;
+          border: 1px solid #27272a;
+          border-radius: 10px;
+          padding: 9px 10px;
+          background: #111113;
+        }
+
+        .admin-sidebar-name {
+          color: #fafafa;
+          font-size: 12px;
+          font-weight: 700;
+        }
+
+        .admin-sidebar-role {
+          margin-top: 3px;
+          color: #71717a;
+          font-size: 10px;
+          font-weight: 600;
+          text-transform: uppercase;
+        }
+
+        .admin-sidebar-logout {
+          width: 100%;
+          min-height: 38px;
+          border: 1px solid #3f3f46;
+          border-radius: 9px;
+          background: #18181b;
+          color: #e4e4e7;
+          cursor: pointer;
+          font-size: 12px;
+          font-weight: 700;
+        }
+
+        .admin-sidebar-logout:disabled {
+          cursor: wait;
+          opacity: 0.7;
         }
 
         @media (max-width: 900px) {
           .admin-mobile-menu-button {
-            display: grid !important;
+            display: grid;
           }
 
           .admin-sidebar {
-            position: fixed !important;
-            top: 0 !important;
-            bottom: 0 !important;
-            left: 0 !important;
-            z-index: 70 !important;
-            height: 100vh !important;
-            transform: translateX(-100%);
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            width: min(82vw, 280px);
+            min-width: 0;
+            max-width: 280px;
+            height: 100vh;
+            height: 100dvh;
+            transform: translateX(-101%);
+            box-shadow: 18px 0 48px rgba(0, 0, 0, 0.45);
           }
 
           .admin-sidebar.admin-sidebar-open {
             transform: translateX(0);
+          }
+
+          .admin-sidebar-close {
+            display: grid;
+          }
+
+          .admin-sidebar-header {
+            padding-right: 56px;
+          }
+
+          .admin-sidebar-link {
+            min-height: 42px;
+            font-size: 13px;
+          }
+        }
+
+        @media (max-height: 700px) {
+          .admin-sidebar-header {
+            padding-top: 12px;
+            padding-bottom: 12px;
+          }
+
+          .admin-sidebar-caption,
+          .admin-sidebar-profile {
+            display: none;
+          }
+
+          .admin-sidebar-footer {
+            padding: 8px;
           }
         }
       `}</style>

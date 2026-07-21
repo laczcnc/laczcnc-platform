@@ -1,5 +1,10 @@
 import Link from "next/link";
 
+import {
+  hasPermission,
+  PERMISSIONS,
+} from "@/core/auth/permissions";
+import { requirePermission } from "@/core/auth/require-permission";
 import { createClient } from "@/infrastructure/supabase/server";
 import { toggleProductFlag } from "./actions";
 
@@ -86,6 +91,15 @@ function StatusButton({
 export default async function AdminProductsPage({
   searchParams,
 }) {
+  const { profile } = await requirePermission(
+    PERMISSIONS.PRODUCTS_VIEW
+  );
+
+  const canManageProducts = hasPermission(
+    profile.role,
+    PERMISSIONS.PRODUCTS_MANAGE
+  );
+
   const params = await searchParams;
   const successMessage =
     successMessages[params?.success];
@@ -149,6 +163,7 @@ export default async function AdminProductsPage({
           </p>
         </div>
 
+        {canManageProducts ? (
         <div className="flex flex-wrap gap-3">
           <Link
             href="/admin/productos/categorias"
@@ -164,6 +179,7 @@ export default async function AdminProductsPage({
             Nuevo producto
           </Link>
         </div>
+        ) : null}
       </section>
 
       {successMessage ? (
@@ -279,6 +295,7 @@ export default async function AdminProductsPage({
                     </td>
 
                     <td className="px-5 py-5">
+                      {canManageProducts ? (
                       <div className="flex min-w-72 flex-wrap gap-2">
                         <StatusButton
                           product={product}
@@ -307,15 +324,30 @@ export default async function AdminProductsPage({
                           activeClass="border-blue-500/30 bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white"
                         />
                       </div>
+                      ) : (
+                        <span className="text-sm text-zinc-500">
+                          Solo lectura
+                        </span>
+                      )}
                     </td>
 
                     <td className="whitespace-nowrap px-5 py-5 text-right">
+                      {canManageProducts ? (
                       <Link
                         href={`/admin/productos/${product.id}/editar`}
                         className="inline-flex rounded-xl border border-zinc-700 px-4 py-2 text-sm font-bold text-zinc-300 transition hover:border-orange-500 hover:text-orange-400"
                       >
                         Editar
                       </Link>
+                      ) : (
+                        <Link
+                          href={`/producto/${product.slug}`}
+                          target="_blank"
+                          className="inline-flex rounded-xl border border-zinc-700 px-4 py-2 text-sm font-bold text-zinc-300 transition hover:border-orange-500 hover:text-orange-400"
+                        >
+                          Ver
+                        </Link>
+                      )}
                     </td>
                   </tr>
                 ))}

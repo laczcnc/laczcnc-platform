@@ -16,6 +16,18 @@ body {
   margin: 0;
   background: var(--background);
   color: var(--foreground);
+  overflow-x: hidden;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
 }
 
 button,
@@ -52,4 +64,124 @@ a {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #52525b;
+}
+
+.admin-shell,
+.admin-content,
+.admin-main {
+  width: 100%;
+  min-width: 0;
+}
+
+.admin-shell input,
+.admin-shell textarea,
+.admin-shell select {
+  max-width: 100%;
+}
+
+@media (max-width: 900px) {
+  .admin-topbar > div {
+    padding-left: 64px;
+  }
+
+  .admin-topbar-brand {
+    display: block;
+  }
+
+  .admin-topbar-brand + p,
+  .admin-topbar-brand + p + p {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .admin-main > div {
+    padding: 18px 14px;
+  }
+
+  .admin-shell .text-4xl {
+    font-size: 1.75rem;
+    line-height: 2rem;
+  }
+
+  .admin-shell .text-3xl {
+    font-size: 1.5rem;
+    line-height: 1.85rem;
+  }
+
+  .admin-shell .text-2xl {
+    font-size: 1.3rem;
+    line-height: 1.7rem;
+  }
+
+  .admin-shell .font-black {
+    font-weight: 700;
+  }
+
+  .admin-shell .font-bold {
+    font-weight: 600;
+  }
+
+  .admin-shell .rounded-2xl {
+    border-radius: 0.875rem;
+  }
+
+  .admin-shell .rounded-xl {
+    border-radius: 0.7rem;
+  }
+
+  .admin-shell .mt-8 {
+    margin-top: 1.25rem;
+  }
+
+  .admin-shell .mt-6 {
+    margin-top: 1rem;
+  }
+
+  .admin-shell .gap-6,
+  .admin-shell .gap-5 {
+    gap: 1rem;
+  }
+
+  .admin-shell .gap-4 {
+    gap: 0.75rem;
+  }
+
+  .admin-shell .p-6,
+  .admin-shell .p-5 {
+    padding: 0.95rem;
+  }
+
+  .admin-shell .px-6,
+  .admin-shell .px-5 {
+    padding-left: 0.9rem;
+    padding-right: 0.9rem;
+  }
+
+  .admin-shell .py-5,
+  .admin-shell .py-4 {
+    padding-top: 0.8rem;
+    padding-bottom: 0.8rem;
+  }
+
+  .admin-shell table {
+    font-size: 0.8125rem;
+  }
+
+  .admin-shell th,
+  .admin-shell td {
+    vertical-align: top;
+  }
+
+  .admin-shell input,
+  .admin-shell textarea,
+  .admin-shell select {
+    min-width: 0;
+    font-size: 16px;
+  }
+
+  .admin-shell button,
+  .admin-shell a {
+    overflow-wrap: anywhere;
+  }
 }

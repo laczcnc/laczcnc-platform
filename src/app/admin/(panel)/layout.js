@@ -14,17 +14,17 @@ export default async function AdminPanelLayout({
     "Usuario";
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
+    <div className="admin-shell min-h-screen bg-zinc-950 text-zinc-100">
       <div className="flex min-h-screen">
         <AdminSidebar />
 
-        <div className="min-w-0 flex-1">
+        <div className="admin-content min-w-0 flex-1">
           <AdminTopbar
             displayName={displayName}
             email={user.email || ""}
           />
 
-          <main className="min-h-[calc(100vh-5rem)] min-w-0">
+          <main className="admin-main min-h-[calc(100vh-4rem)] min-w-0 overflow-x-hidden">
             {children}
           </main>
         </div>

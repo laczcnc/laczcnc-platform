@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { PERMISSIONS } from "@/core/auth/permissions";
+import { requirePermission } from "@/core/auth/require-permission";
 import { createClient } from "@/infrastructure/supabase/server";
 import ProductForm from "@/modules/catalog/components/ProductForm";
 import ProductGalleryManager from "@/modules/catalog/components/ProductGalleryManager";
@@ -42,6 +44,10 @@ export default async function EditProductPage({
   params,
   searchParams,
 }) {
+  await requirePermission(
+    PERMISSIONS.PRODUCTS_MANAGE
+  );
+
   const routeParams = await params;
   const queryParams = await searchParams;
 

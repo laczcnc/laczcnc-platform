@@ -1,6 +1,7 @@
 import Link from "next/link";
 
-import { requireAdmin } from "@/core/auth/require-admin";
+import { PERMISSIONS } from "@/core/auth/permissions";
+import { requirePermission } from "@/core/auth/require-permission";
 import { createClient } from "@/infrastructure/supabase/server";
 import GalleryManager from "@/modules/gallery/components/GalleryManager";
 
@@ -11,7 +12,9 @@ export const metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function AdminGalleryPage() {
-  await requireAdmin();
+  await requirePermission(
+    PERMISSIONS.GALLERY_MANAGE
+  );
 
   const supabase = await createClient();
 

@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { PERMISSIONS } from "@/core/auth/permissions";
+import { requirePermission } from "@/core/auth/require-permission";
 import { createClient } from "@/infrastructure/supabase/server";
 import ProductForm from "@/modules/catalog/components/ProductForm";
 import { createProduct } from "../actions";
@@ -36,6 +38,10 @@ const errorMessages = {
 export default async function NewProductPage({
   searchParams,
 }) {
+  await requirePermission(
+    PERMISSIONS.PRODUCTS_MANAGE
+  );
+
   const params = await searchParams;
 
   const errorMessage =

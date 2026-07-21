@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { PERMISSIONS } from "@/core/auth/permissions";
+import { requirePermission } from "@/core/auth/require-permission";
 import { createClient } from "@/infrastructure/supabase/server";
 import {
   createCategory,
@@ -39,6 +41,10 @@ const successMessages = {
 export default async function ProductCategoriesPage({
   searchParams,
 }) {
+  await requirePermission(
+    PERMISSIONS.PRODUCTS_MANAGE
+  );
+
   const params = await searchParams;
   const errorMessage = errorMessages[params?.error];
   const successMessage = successMessages[params?.success];
