@@ -60,6 +60,13 @@ export const adminNavigation = [
     enabled: true,
   },
   {
+    name: "Inventario",
+    href: "/admin/inventario",
+    shortName: "IV",
+    permission: PERMISSIONS.INVENTORY_VIEW,
+    enabled: true,
+  },
+  {
     name: "Entregas",
     href: "/admin/entregas",
     shortName: "EN",

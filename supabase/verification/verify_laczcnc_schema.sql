@@ -23,6 +23,8 @@ with expected_tables(table_name) as (
     ('production_stages'),
     ('production_jobs'),
     ('production_events'),
+    ('inventory_materials'),
+    ('inventory_movements'),
     ('deliveries'),
     ('delivery_events'),
     ('map_locations'),
@@ -43,7 +45,8 @@ with expected_functions(function_signature) as (
     ('public.has_staff_role(text[])'),
     ('public.change_order_status_staff(uuid,text)'),
     ('public.sync_order_from_production(uuid,text)'),
-    ('public.sync_order_from_delivery(uuid,text)')
+    ('public.sync_order_from_delivery(uuid,text)'),
+    ('public.register_inventory_movement(uuid,text,numeric,text,text)')
 )
 select
   function_signature,
@@ -83,6 +86,8 @@ where n.nspname = 'public'
     'production_stages',
     'production_jobs',
     'production_events',
+    'inventory_materials',
+    'inventory_movements',
     'deliveries',
     'delivery_events',
     'map_locations',
@@ -115,6 +120,8 @@ where schemaname in ('public', 'storage')
     'production_stages',
     'production_jobs',
     'production_events',
+    'inventory_materials',
+    'inventory_movements',
     'deliveries',
     'delivery_events',
     'map_locations',
