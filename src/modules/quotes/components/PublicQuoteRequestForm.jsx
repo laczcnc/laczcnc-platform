@@ -34,6 +34,9 @@ function SubmitButton() {
 export default function PublicQuoteRequestForm({
   productId,
   productName,
+  initialQuantity = "",
+  initialMessage = "",
+  sectionId = "quote-form",
 }) {
   const formRef = useRef(null);
 
@@ -50,7 +53,7 @@ export default function PublicQuoteRequestForm({
 
   return (
     <section
-      id="cotizacion"
+      id={sectionId}
       className="rounded-3xl border border-zinc-800 bg-zinc-900/60 p-5 sm:p-7"
     >
       <div>
@@ -257,6 +260,7 @@ export default function PublicQuoteRequestForm({
               step="1"
               inputMode="numeric"
               placeholder="Ejemplo: 20"
+              defaultValue={initialQuantity}
               className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-700 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/10"
             />
           </div>
@@ -276,6 +280,7 @@ export default function PublicQuoteRequestForm({
             rows={5}
             maxLength={3000}
             placeholder="Describe medidas, materiales, colores, fecha de entrega o personalización."
+            defaultValue={initialMessage}
             className="w-full resize-y rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm leading-6 text-zinc-100 outline-none transition placeholder:text-zinc-700 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/10"
           />
         </div>

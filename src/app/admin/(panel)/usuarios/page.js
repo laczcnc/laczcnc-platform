@@ -1,9 +1,16 @@
 import Link from "next/link";
 
 import { requireAdmin } from "@/core/auth/require-admin";
+import {
+  ADMIN_SECTIONS,
+  hasPermission,
+} from "@/core/auth/permissions";
 import { createAdminClient } from "@/infrastructure/supabase/admin";
 
-import { updateUserProfile } from "./actions";
+import {
+  updateUserProfile,
+  updateUserSectionAccess,
+} from "./actions";
 import UserSecurityActions from "./UserSecurityActions";
 
 export const metadata = {
@@ -24,6 +31,7 @@ const successMessages = {
   created: "Usuario creado correctamente.",
   updated: "Perfil actualizado correctamente.",
   password: "Contraseña actualizada correctamente.",
+  permissions: "Accesos por sección actualizados.",
   deleted: "Usuario eliminado correctamente.",
 };
 
@@ -102,6 +110,7 @@ export default async function UsersPage({
           job_title,
           department,
           commission_rate,
+          section_access,
           notes,
           created_at,
           updated_at
@@ -339,7 +348,7 @@ export default async function UsersPage({
               profile.id === currentUser.id;
 
             return (
-              <article
+              <details
                 key={profile.id}
                 style={{
                   overflow: "hidden",
@@ -348,7 +357,7 @@ export default async function UsersPage({
                   background: "#111113",
                 }}
               >
-                <div className="user-card-header">
+                <summary className="user-card-header">
                   <div
                     style={{
                       display: "flex",
@@ -479,7 +488,11 @@ export default async function UsersPage({
                         : "Inactivo"}
                     </span>
                   </div>
-                </div>
+
+                  <span className="user-edit-trigger">
+                    Editar
+                  </span>
+                </summary>
 
                 <form
                   action={updateUserProfile}
@@ -682,6 +695,60 @@ export default async function UsersPage({
                   </div>
                 </form>
 
+                <form
+                  action={updateUserSectionAccess}
+                  style={{
+                    display: "grid",
+                    gap: 16,
+                    borderTop: "1px solid #27272a",
+                    padding: "20px",
+                    background: "#0c0c0e",
+                  }}
+                >
+                  <input type="hidden" name="profile_id" value={profile.id} />
+                  <div>
+                    <strong style={{ color: "#fafafa", fontSize: 14 }}>
+                      Acceso individual por sección
+                    </strong>
+                    <p style={{ margin: "6px 0 0", color: "#71717a", fontSize: 12 }}>
+                      Estas opciones reemplazan el acceso normal del rol. Los administradores conservan acceso total.
+                    </p>
+                  </div>
+
+                  <div className="user-access-grid">
+                    {ADMIN_SECTIONS.map((section) => {
+                      const hasOverride =
+                        profile.section_access &&
+                        Object.prototype.hasOwnProperty.call(
+                          profile.section_access,
+                          section.key
+                        );
+                      const enabled = hasOverride
+                        ? profile.section_access[section.key] === true
+                        : hasPermission(
+                            profile.role,
+                            section.permission
+                          );
+
+                      return (
+                        <label key={section.key} className="user-access-toggle">
+                          <input
+                            type="checkbox"
+                            name={`section_${section.key}`}
+                            value="true"
+                            defaultChecked={enabled}
+                          />
+                          <span>{section.label}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+
+                  <button type="submit" className="user-access-save">
+                    Guardar accesos
+                  </button>
+                </form>
+
                 <UserSecurityActions
                   userId={profile.id}
                   userName={
@@ -718,7 +785,7 @@ export default async function UsersPage({
                     )}
                   </span>
                 </footer>
-              </article>
+              </details>
             );
           })}
         </section>
@@ -741,6 +808,71 @@ export default async function UsersPage({
           border-bottom: 1px solid #27272a;
           padding: 18px 20px;
           background: #0c0c0e;
+          cursor: pointer;
+          list-style: none;
+        }
+
+        .user-card-header::-webkit-details-marker {
+          display: none;
+        }
+
+        .user-edit-trigger {
+          border: 1px solid #3f3f46;
+          border-radius: 10px;
+          padding: 9px 13px;
+          color: #e4e4e7;
+          font-size: 12px;
+          font-weight: 900;
+        }
+
+        details[open] .user-edit-trigger {
+          border-color: #0284c7;
+          color: #7dd3fc;
+        }
+
+        .user-access-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+          gap: 10px;
+        }
+
+        .user-access-toggle {
+          display: flex;
+          min-height: 42px;
+          align-items: center;
+          gap: 9px;
+          border: 1px solid #3f3f46;
+          border-radius: 10px;
+          padding: 0 12px;
+          color: #d4d4d8;
+          font-size: 12px;
+          font-weight: 800;
+          cursor: pointer;
+        }
+
+        .user-access-toggle:has(input:checked) {
+          border-color: #0369a1;
+          background: rgba(2, 132, 199, 0.12);
+          color: #7dd3fc;
+        }
+
+        .user-access-toggle input {
+          width: 17px;
+          height: 17px;
+          accent-color: #0284c7;
+        }
+
+        .user-access-save {
+          justify-self: end;
+          min-height: 42px;
+          border: 1px solid #0284c7;
+          border-radius: 10px;
+          padding: 0 16px;
+          background: #0284c7;
+          color: white;
+          font-size: 12px;
+          font-weight: 900;
+          cursor: pointer;
         }
 
         .user-form-grid {

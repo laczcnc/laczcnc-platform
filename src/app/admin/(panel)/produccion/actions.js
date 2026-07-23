@@ -404,6 +404,68 @@ export async function updateProductionJob(
   revalidateProduction(orderId);
 }
 
+export async function changeProductionStatus(formData) {
+  await requirePermission(PERMISSIONS.PRODUCTION_MANAGE);
+  const productionJobId = normalizeText(formData.get("production_job_id"));
+  const orderId = normalizeText(formData.get("order_id"));
+  const status = normalizeText(formData.get("status"));
+
+  if (!productionJobId || !orderId) {
+    throw new Error("No se recibió la orden de producción.");
+  }
+  if (!JOB_STATUSES.includes(status)) {
+    throw new Error("El estado seleccionado no es válido.");
+  }
+
+  const updates = { status };
+  if (status === "in_progress") updates.started_at = new Date().toISOString();
+  if (status === "ready") {
+    updates.completed_at = new Date().toISOString();
+    updates.progress = 100;
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("production_jobs")
+    .update(updates)
+    .eq("id", productionJobId);
+
+  if (error) {
+    throw new Error("No fue posible cambiar el estado de producción.");
+  }
+
+  let orderStatus = "production";
+  if (status === "ready") orderStatus = "ready";
+  if (status === "cancelled") orderStatus = "cancelled";
+
+  await supabase.rpc("sync_order_from_production", {
+    target_order_id: orderId,
+    requested_status: orderStatus,
+  });
+  revalidateProduction(orderId);
+}
+
+export async function changeProductionPriority(formData) {
+  await requirePermission(PERMISSIONS.PRODUCTION_MANAGE);
+  const productionJobId = normalizeText(formData.get("production_job_id"));
+  const priority = normalizeText(formData.get("priority"));
+
+  if (!productionJobId || !PRIORITIES.includes(priority)) {
+    throw new Error("La prioridad seleccionada no es válida.");
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("production_jobs")
+    .update({ priority })
+    .eq("id", productionJobId);
+
+  if (error) {
+    throw new Error("No fue posible cambiar la prioridad.");
+  }
+  revalidateProduction();
+}
+
 export async function updateProductionStage(
   formData
 ) {

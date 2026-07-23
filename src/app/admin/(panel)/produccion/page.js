@@ -3,8 +3,11 @@ import Link from "next/link";
 import { PERMISSIONS } from "@/core/auth/permissions";
 import { requirePermission } from "@/core/auth/require-permission";
 import { createClient } from "@/infrastructure/supabase/server";
+import InlineActionMenu from "@/shared/components/admin/InlineActionMenu";
 
 import {
+  changeProductionPriority,
+  changeProductionStatus,
   createProductionJob,
   updateProductionJob,
   updateProductionStage,
@@ -69,7 +72,13 @@ function formatDate(value) {
   return new Intl.DateTimeFormat("es-PE", {
     dateStyle: "medium",
     timeZone: "America/Lima",
-  }).format(new Date(`${value}T12:00:00`));
+  }).format(
+    new Date(
+      String(value).includes("T")
+        ? value
+        : `${value}T12:00:00`
+    )
+  );
 }
 
 function getOrderNumber(order) {
@@ -114,6 +123,7 @@ export default async function ProductionPage({
         order_number,
         status,
         quantity,
+        created_at,
         requested_delivery_date,
         customers (
           id,
@@ -362,16 +372,12 @@ export default async function ProductionPage({
         </div>
       </section>
 
-      <section className="mt-8 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 sm:p-6">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-orange-400">
-            Nueva orden
-          </p>
-
-          <h2 className="mt-2 text-xl font-black text-zinc-100">
-            Enviar pedido a producción
-          </h2>
-        </div>
+      <details className="group mt-6 rounded-xl border border-violet-500/30 bg-violet-500/5">
+        <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-black text-violet-300">
+          <span>+ Enviar pedido a producción</span>
+          <span className="group-open:rotate-180">▾</span>
+        </summary>
+        <section className="border-t border-zinc-800 p-4 sm:p-5">
 
         {eligibleOrders.length === 0 ? (
           <p className="mt-5 rounded-xl border border-dashed border-zinc-800 p-5 text-sm text-zinc-600">
@@ -567,7 +573,8 @@ export default async function ProductionPage({
             </div>
           </form>
         )}
-      </section>
+        </section>
+      </details>
 
       <section className="mt-8">
         <div className="flex gap-2 overflow-x-auto pb-3">
@@ -638,32 +645,34 @@ export default async function ProductionPage({
               <div className="flex flex-col justify-between gap-5 xl:flex-row xl:items-start">
                 <div>
                   <div className="flex flex-wrap items-center gap-3">
-                    <span
-                      className={[
-                        "rounded-full border px-3 py-1 text-xs font-black uppercase",
-                        JOB_STATUS_STYLES[
-                          job.status
-                        ],
-                      ].join(" ")}
-                    >
-                      {JOB_STATUS_LABELS[
-                        job.status
-                      ]}
-                    </span>
+                    <InlineActionMenu
+                      action={changeProductionStatus}
+                      currentValue={job.status}
+                      currentLabel={JOB_STATUS_LABELS[job.status]}
+                      currentClassName={JOB_STATUS_STYLES[job.status]}
+                      fieldName="status"
+                      options={Object.entries(JOB_STATUS_LABELS).map(
+                        ([value, label]) => ({ value, label })
+                      )}
+                      hiddenFields={{
+                        production_job_id: job.id,
+                        order_id: job.order_id,
+                      }}
+                      confirmMessage="¿Confirmas cambiar producción a {value}?"
+                    />
 
-                    <span
-                      className={[
-                        "text-xs font-black uppercase",
-                        PRIORITY_STYLES[
-                          job.priority
-                        ],
-                      ].join(" ")}
-                    >
-                      Prioridad{" "}
-                      {PRIORITY_LABELS[
-                        job.priority
-                      ]}
-                    </span>
+                    <InlineActionMenu
+                      action={changeProductionPriority}
+                      currentValue={job.priority}
+                      currentLabel={`Prioridad ${PRIORITY_LABELS[job.priority]}`}
+                      currentClassName={`border-zinc-700 bg-zinc-950 ${PRIORITY_STYLES[job.priority]}`}
+                      fieldName="priority"
+                      options={Object.entries(PRIORITY_LABELS).map(
+                        ([value, label]) => ({ value, label })
+                      )}
+                      hiddenFields={{ production_job_id: job.id }}
+                      confirmMessage="¿Confirmas la prioridad {value}?"
+                    />
 
                     <span className="font-mono text-sm font-black text-orange-400">
                       {getOrderNumber(job.orders)}
@@ -683,6 +692,14 @@ export default async function ProductionPage({
                         "Sin cliente"}
                     </span>
                   </p>
+
+                  <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-zinc-500">
+                    <span>
+                      Cantidad: <b className="text-zinc-300">{job.orders?.quantity ?? "—"}</b>
+                    </span>
+                    <span>Pedido: {formatDate(job.orders?.created_at)}</span>
+                    <span>Entrega cliente: {formatDate(job.orders?.requested_delivery_date)}</span>
+                  </div>
                 </div>
 
                 <div className="min-w-56">
@@ -712,11 +729,17 @@ export default async function ProductionPage({
                 </div>
               </div>
 
-              <div className="mt-6 grid gap-3 md:grid-cols-5">
+              <details className="group mt-5 rounded-xl border border-zinc-800 bg-zinc-950/30">
+                <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-xs font-black text-zinc-400">
+                  <span>Ver etapas, asignación y configuración</span>
+                  <span className="group-open:rotate-180">▾</span>
+                </summary>
+
+              <div className="grid gap-3 border-t border-zinc-800 p-4 md:grid-cols-5">
                 {stages.map((stage) => (
                   <div
                     key={stage.id}
-                    className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4"
+                    className="flex h-full flex-col rounded-xl border border-zinc-800 bg-zinc-950/60 p-4"
                   >
                     <p className="text-xs font-black text-zinc-300">
                       {stage.sequence_number}.{" "}
@@ -731,7 +754,7 @@ export default async function ProductionPage({
                       }
                     </p>
 
-                    <div className="mt-4 grid gap-2">
+                    <div className="mt-auto grid gap-2 pt-4">
                       {stage.status ===
                       "pending" ? (
                         <form
@@ -876,6 +899,8 @@ export default async function ProductionPage({
                   />
 
                   <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+                    <label className="grid gap-2 text-xs font-bold text-zinc-500">
+                      Taller asignado
                     <select
                       name="workshop_id"
                       defaultValue={
@@ -898,7 +923,10 @@ export default async function ProductionPage({
                         )
                       )}
                     </select>
+                    </label>
 
+                    <label className="grid gap-2 text-xs font-bold text-zinc-500">
+                      Personal encargado
                     <select
                       name="assigned_to"
                       defaultValue={
@@ -919,47 +947,23 @@ export default async function ProductionPage({
                         </option>
                       ))}
                     </select>
+                    </label>
 
-                    <select
-                      name="status"
-                      defaultValue={job.status}
-                      className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm text-zinc-100"
-                    >
-                      {Object.entries(
-                        JOB_STATUS_LABELS
-                      ).map(
-                        ([status, label]) => (
-                          <option
-                            key={status}
-                            value={status}
-                          >
-                            {label}
-                          </option>
-                        )
-                      )}
-                    </select>
-
-                    <select
-                      name="priority"
-                      defaultValue={job.priority}
-                      className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm text-zinc-100"
-                    >
-                      {Object.entries(
-                        PRIORITY_LABELS
-                      ).map(
-                        ([priority, label]) => (
-                          <option
-                            key={priority}
-                            value={priority}
-                          >
-                            Prioridad {label}
-                          </option>
-                        )
-                      )}
-                    </select>
+                    <label className="grid gap-2 text-xs font-bold text-zinc-500">
+                      Estado (se edita arriba)
+                      <input readOnly value={JOB_STATUS_LABELS[job.status]} className="rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-zinc-500" />
+                    </label>
+                    <label className="grid gap-2 text-xs font-bold text-zinc-500">
+                      Prioridad (se edita arriba)
+                      <input readOnly value={PRIORITY_LABELS[job.priority]} className="rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-zinc-500" />
+                    </label>
+                    <input type="hidden" name="status" value={job.status} />
+                    <input type="hidden" name="priority" value={job.priority} />
                   </div>
 
                   <div className="grid gap-5 md:grid-cols-3">
+                    <label className="grid gap-2 text-xs font-bold text-zinc-500">
+                      Progreso %
                     <input
                       name="progress"
                       type="number"
@@ -968,7 +972,10 @@ export default async function ProductionPage({
                       defaultValue={job.progress}
                       className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm text-zinc-100"
                     />
+                    </label>
 
+                    <label className="grid gap-2 text-xs font-bold text-zinc-500">
+                      Fecha de asignación / inicio
                     <input
                       name="scheduled_start_date"
                       type="date"
@@ -978,7 +985,10 @@ export default async function ProductionPage({
                       }
                       className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm text-zinc-100"
                     />
+                    </label>
 
+                    <label className="grid gap-2 text-xs font-bold text-zinc-500">
+                      Entrega del taller
                     <input
                       name="due_date"
                       type="date"
@@ -987,8 +997,11 @@ export default async function ProductionPage({
                       }
                       className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm text-zinc-100"
                     />
+                    </label>
                   </div>
 
+                  <label className="grid gap-2 text-xs font-bold text-zinc-500">
+                    Notas de producción
                   <textarea
                     name="production_notes"
                     rows={3}
@@ -998,7 +1011,10 @@ export default async function ProductionPage({
                     placeholder="Notas de producción"
                     className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm text-zinc-100"
                   />
+                  </label>
 
+                  <label className="grid gap-2 text-xs font-bold text-zinc-500">
+                    Observaciones de calidad
                   <textarea
                     name="quality_notes"
                     rows={3}
@@ -1008,6 +1024,7 @@ export default async function ProductionPage({
                     placeholder="Observaciones de calidad"
                     className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm text-zinc-100"
                   />
+                  </label>
 
                   <div className="flex justify-end">
                     <button className="rounded-xl bg-violet-500 px-6 py-3 text-sm font-black text-white">
@@ -1015,6 +1032,7 @@ export default async function ProductionPage({
                     </button>
                   </div>
                 </form>
+              </details>
               </details>
             </article>
           );

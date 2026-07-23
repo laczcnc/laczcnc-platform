@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { createClient } from "@/infrastructure/supabase/server";
 import PublicProductGallery from "@/modules/catalog/components/PublicProductGallery";
+import ProductPurchaseActions from "@/modules/cart/components/ProductPurchaseActions";
 import PublicQuoteRequestForm from "@/modules/quotes/components/PublicQuoteRequestForm";
 
 export const dynamic = "force-dynamic";
@@ -259,29 +260,32 @@ export default async function ProductDetailPage({
             </section>
           ) : null}
 
-          <div className="mt-10 grid gap-3 sm:grid-cols-2">
-            <a
-              href="#cotizacion"
-              className="flex items-center justify-center rounded-xl bg-orange-500 px-5 py-3 text-sm font-black text-zinc-950 transition hover:bg-orange-400"
-            >
-              Solicitar cotización
-            </a>
-
-            <Link
-              href="/"
-              className="flex items-center justify-center rounded-xl border border-zinc-700 px-5 py-3 text-sm font-black text-zinc-300 transition hover:border-orange-500 hover:text-orange-400"
-            >
-              Volver a la tienda
-            </Link>
-          </div>
+          <ProductPurchaseActions
+            product={{
+              id: product.id,
+              slug: product.slug,
+              name: product.name,
+              image_url: product.image_url,
+              price: product.price,
+              price_label: product.price_label,
+            }}
+          />
+          <Link href="/" className="mt-3 flex items-center justify-center rounded-xl border border-zinc-700 px-5 py-3 text-sm font-black text-zinc-300">
+            Volver a la tienda
+          </Link>
         </div>
       </section>
 
       <section className="mx-auto max-w-4xl px-4 pb-16 sm:px-6 lg:px-8">
-        <PublicQuoteRequestForm
-          productId={product.id}
-          productName={product.name}
-        />
+        <details id="cotizacion" className="group scroll-mt-24 rounded-2xl border border-orange-500/30 bg-orange-500/5">
+          <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-4 font-black text-orange-300">
+            <span>Solicitar cotización de {product.name}</span>
+            <span className="group-open:rotate-180">▾</span>
+          </summary>
+          <div className="border-t border-zinc-800 p-3 sm:p-5">
+            <PublicQuoteRequestForm productId={product.id} productName={product.name} sectionId="quote-form" />
+          </div>
+        </details>
       </section>
     </main>
   );

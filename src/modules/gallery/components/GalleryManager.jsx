@@ -11,13 +11,20 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/infrastructure/supabase/client";
 
 const BUCKET_NAME = "product-images";
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
+const MAX_VIDEO_SIZE = 100 * 1024 * 1024;
 
 const ALLOWED_IMAGE_TYPES = [
   "image/jpeg",
   "image/png",
   "image/webp",
   "image/avif",
+];
+
+const ALLOWED_VIDEO_TYPES = [
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
 ];
 
 function sanitizeFileName(fileName) {
@@ -121,15 +128,22 @@ export default function GalleryManager({
 
   function validateFile(file) {
     if (
-      !ALLOWED_IMAGE_TYPES.includes(
-        file.type
-      )
+      !ALLOWED_IMAGE_TYPES.includes(file.type) &&
+      !ALLOWED_VIDEO_TYPES.includes(file.type)
     ) {
-      return "Formato no permitido. Utiliza JPG, PNG, WEBP o AVIF.";
+      return "Formato no permitido. Utiliza JPG, PNG, WEBP, AVIF, MP4, WEBM o MOV.";
     }
 
-    if (file.size > MAX_FILE_SIZE) {
-      return "Una imagen supera el límite máximo de 10 MB.";
+    const isVideo =
+      ALLOWED_VIDEO_TYPES.includes(file.type);
+    const maximumSize = isVideo
+      ? MAX_VIDEO_SIZE
+      : MAX_IMAGE_SIZE;
+
+    if (file.size > maximumSize) {
+      return isVideo
+        ? "Un video supera el límite máximo de 100 MB."
+        : "Una imagen supera el límite máximo de 10 MB.";
     }
 
     return "";
@@ -253,7 +267,9 @@ export default function GalleryManager({
               createTitleFromFileName(
                 file.name
               ),
-            item_type: "image",
+            item_type: file.type.startsWith("video/")
+              ? "video"
+              : "image",
             storage_path: storagePath,
             public_url: publicUrl,
             is_published: true,
@@ -281,8 +297,8 @@ export default function GalleryManager({
 
       setSuccessMessage(
         insertedItems.length === 1
-          ? "Imagen agregada correctamente."
-          : `${insertedItems.length} imágenes agregadas correctamente.`
+          ? "Archivo agregado correctamente."
+          : `${insertedItems.length} archivos agregados correctamente.`
       );
 
       router.refresh();
@@ -304,7 +320,7 @@ export default function GalleryManager({
 
       setErrorMessage(
         error?.message ||
-          "No fue posible cargar las imágenes."
+          "No fue posible cargar los archivos."
       );
     } finally {
       setIsUploading(false);
@@ -697,11 +713,17 @@ export default function GalleryManager({
 
   return (
     <div className="grid gap-8">
+      <details className="group rounded-xl border border-orange-500/30 bg-orange-500/5">
+        <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-black text-orange-300">
+          <span>+ Agregar imágenes o video</span>
+          <span className="group-open:rotate-180">▾</span>
+        </summary>
+        <div className="grid gap-4 border-t border-zinc-800 p-4 sm:p-5">
       <section className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 sm:p-6">
         <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-orange-400">
-              Fotografías
+              Archivos locales
             </p>
 
             <h2 className="mt-2 text-xl font-black text-zinc-100">
@@ -709,8 +731,8 @@ export default function GalleryManager({
             </h2>
 
             <p className="mt-2 text-sm leading-6 text-zinc-600">
-              Selecciona varias imágenes desde
-              la computadora o celular.
+              Selecciona fotos o videos desde la
+              computadora o celular.
             </p>
           </div>
 
@@ -720,7 +742,7 @@ export default function GalleryManager({
               id={inputId}
               type="file"
               multiple
-              accept="image/jpeg,image/png,image/webp,image/avif"
+              accept="image/jpeg,image/png,image/webp,image/avif,video/mp4,video/webm,video/quicktime"
               onChange={
                 handleFileSelection
               }
@@ -739,14 +761,14 @@ export default function GalleryManager({
             >
               {isUploading
                 ? "Subiendo..."
-                : "Agregar imágenes"}
+                : "Agregar fotos o videos"}
             </label>
           </div>
         </div>
 
         <p className="mt-3 text-xs text-zinc-600">
-          JPG, PNG, WEBP o AVIF. Máximo
-          10 MB por archivo.
+          JPG, PNG, WEBP o AVIF hasta 10 MB. MP4,
+          WEBM o MOV hasta 100 MB.
         </p>
       </section>
 
@@ -796,6 +818,8 @@ export default function GalleryManager({
           </button>
         </form>
       </section>
+        </div>
+      </details>
 
       {errorMessage ? (
         <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3">
@@ -826,10 +850,21 @@ export default function GalleryManager({
               busyItemId === item.id;
 
             return (
-              <article
+              <details
                 key={item.id}
-                className="grid overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/60 lg:grid-cols-[320px_minmax(0,1fr)]"
+                className="group overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/60"
               >
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-3">
+                  <div className="min-w-0">
+                    <strong className="block truncate text-sm text-zinc-100">{item.title}</strong>
+                    <span className="text-xs text-zinc-500">
+                      {item.item_type === "image" ? "Imagen" : "Video"} · {item.is_published ? "Publicado" : "Oculto"}
+                    </span>
+                  </div>
+                  <span className="text-xs font-black text-zinc-500 group-open:text-orange-400">Editar ▾</span>
+                </summary>
+
+                <div className="grid border-t border-zinc-800 lg:grid-cols-[240px_minmax(0,1fr)]">
                 <div className="min-h-64 bg-zinc-950">
                   {item.item_type ===
                   "image" ? (
@@ -1033,7 +1068,8 @@ export default function GalleryManager({
                     </button>
                   </div>
                 </div>
-              </article>
+                </div>
+              </details>
             );
           })}
         </section>

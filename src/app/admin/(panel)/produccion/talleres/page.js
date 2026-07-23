@@ -126,24 +126,22 @@ export default async function WorkshopsPage({
           </p>
         </div>
 
-        <Link
-          href="/admin/produccion"
-          className="rounded-xl border border-zinc-700 px-5 py-3 text-sm font-black text-zinc-300 transition hover:border-violet-500 hover:text-violet-300"
-        >
-          Volver a producción
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="#nuevo-taller" className="rounded-xl bg-cyan-500 px-5 py-3 text-sm font-black text-zinc-950">
+            + Nuevo taller
+          </Link>
+          <Link href="/admin/produccion" className="rounded-xl border border-zinc-700 px-5 py-3 text-sm font-black text-zinc-300">
+            Volver a producción
+          </Link>
+        </div>
       </section>
 
-      <section className="mt-8 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 sm:p-6">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-orange-400">
-            Nuevo proveedor
-          </p>
-
-          <h2 className="mt-2 text-xl font-black text-zinc-100">
-            Registrar taller
-          </h2>
-        </div>
+      <details id="nuevo-taller" className="group mt-6 scroll-mt-24 rounded-xl border border-cyan-500/30 bg-cyan-500/5">
+        <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-black text-cyan-300">
+          <span>+ Registrar nuevo taller</span>
+          <span className="group-open:rotate-180">▾</span>
+        </summary>
+        <section className="border-t border-zinc-800 p-4 sm:p-5">
 
         <form
           action={createWorkshop}
@@ -308,7 +306,8 @@ export default async function WorkshopsPage({
             </button>
           </div>
         </form>
-      </section>
+        </section>
+      </details>
 
       <section className="mt-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>

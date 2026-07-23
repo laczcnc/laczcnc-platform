@@ -118,13 +118,6 @@ export const adminNavigation = [
     enabled: true,
   },
   {
-    name: "Crear usuario",
-    href: "/admin/usuarios/nuevo",
-    shortName: "NU",
-    permission: PERMISSIONS.USERS_MANAGE,
-    enabled: true,
-  },
-  {
     name: "Configuración",
     href: "/admin/configuracion",
     shortName: "CF",
@@ -133,7 +126,10 @@ export const adminNavigation = [
   },
 ];
 
-export function getAdminNavigation(role) {
+export function getAdminNavigation(
+  role,
+  sectionAccess = null
+) {
   const { hasPermission } = require("@/core/auth/permissions");
 
   return adminNavigation.filter((item) => {
@@ -141,6 +137,6 @@ export function getAdminNavigation(role) {
       return false;
     }
 
-    return hasPermission(role, item.permission);
+    return hasPermission(role, item.permission, sectionAccess);
   });
 }

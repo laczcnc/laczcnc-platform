@@ -75,33 +75,33 @@ export default async function AdminGalleryPage() {
         </Link>
       </section>
 
-      <section className="mt-8 grid gap-4 sm:grid-cols-3">
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5">
+      <section className="mt-7 grid grid-cols-3 gap-3">
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
           <p className="text-sm font-bold text-zinc-500">
             Total
           </p>
 
-          <p className="mt-2 text-4xl font-black text-zinc-100">
+          <p className="mt-2 text-2xl font-black text-zinc-100 sm:text-3xl">
             {items.length}
           </p>
         </div>
 
-        <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-5">
+        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
           <p className="text-sm font-bold text-zinc-500">
             Publicados
           </p>
 
-          <p className="mt-2 text-4xl font-black text-emerald-300">
+          <p className="mt-2 text-2xl font-black text-emerald-300 sm:text-3xl">
             {publishedCount}
           </p>
         </div>
 
-        <div className="rounded-2xl border border-orange-500/20 bg-orange-500/5 p-5">
+        <div className="rounded-xl border border-orange-500/20 bg-orange-500/5 p-4">
           <p className="text-sm font-bold text-zinc-500">
             Destacados
           </p>
 
-          <p className="mt-2 text-4xl font-black text-orange-300">
+          <p className="mt-2 text-2xl font-black text-orange-300 sm:text-3xl">
             {featuredCount}
           </p>
         </div>

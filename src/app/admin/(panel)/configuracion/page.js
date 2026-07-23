@@ -144,8 +144,8 @@ export default async function ConfigurationPage() {
           </h1>
 
           <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-500">
-            Administra información pública,
-            medios de contacto, pagos y mensajes
+            Administra aquí toda la información de la tercera
+            pestaña pública Contacto, además de pagos y mensajes
             comerciales.
           </p>
         </div>
@@ -265,12 +265,12 @@ export default async function ConfigurationPage() {
                               name={
                                 setting.setting_key
                               }
-                              rows={4}
+                              rows={3}
                               defaultValue={
                                 setting.setting_value ||
                                 ""
                               }
-                              className="w-full resize-y rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm leading-6 text-zinc-100 outline-none transition placeholder:text-zinc-700 focus:border-orange-500"
+                              className="w-full resize-y rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2.5 text-sm leading-6 text-zinc-100 outline-none transition placeholder:text-zinc-700 focus:border-orange-500"
                             />
                           ) : (
                             <input
@@ -287,7 +287,7 @@ export default async function ConfigurationPage() {
                                 setting.setting_value ||
                                 ""
                               }
-                              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-700 focus:border-orange-500"
+                              className="h-10 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-700 focus:border-orange-500"
                             />
                           )}
 

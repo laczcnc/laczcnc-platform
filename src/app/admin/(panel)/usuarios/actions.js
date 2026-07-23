@@ -14,6 +14,13 @@ const ALLOWED_ROLES = [
   "delivery",
 ];
 
+const SECTION_KEYS = [
+  "dashboard", "alerts", "reports", "quotes",
+  "orders", "customers", "products", "production",
+  "workshops", "inventory", "deliveries", "map",
+  "gallery", "users", "settings",
+];
+
 function getText(formData, field) {
   return String(formData.get(field) ?? "").trim();
 }
@@ -321,6 +328,45 @@ export async function updateUserProfile(formData) {
   redirect(
     "/admin/usuarios?success=updated"
   );
+}
+
+export async function updateUserSectionAccess(formData) {
+  await requireAdmin();
+
+  const profileId = getText(formData, "profile_id");
+  if (!profileId) {
+    redirectWithError(
+      "/admin/usuarios",
+      "No se encontró el usuario."
+    );
+  }
+
+  const sectionAccess = Object.fromEntries(
+    SECTION_KEYS.map((key) => [
+      key,
+      getBoolean(formData, `section_${key}`),
+    ])
+  );
+
+  const adminClient = createAdminClient();
+  const { error } = await adminClient
+    .from("profiles")
+    .update({
+      section_access: sectionAccess,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", profileId);
+
+  if (error) {
+    redirectWithError(
+      "/admin/usuarios",
+      `No se guardaron los accesos: ${error.message}`
+    );
+  }
+
+  revalidatePath("/admin/usuarios");
+  revalidatePath("/admin", "layout");
+  redirect("/admin/usuarios?success=permissions");
 }
 
 export async function resetUserPassword(formData) {

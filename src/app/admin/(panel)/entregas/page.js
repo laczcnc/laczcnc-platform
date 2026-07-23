@@ -209,7 +209,7 @@ export default async function DeliveriesPage({
 
   const [
     deliveriesResponse,
-    eligibleOrdersResponse,
+    ordersResponse,
   ] = await Promise.all([
     deliveriesQuery,
 
@@ -220,6 +220,8 @@ export default async function DeliveriesPage({
         order_number,
         status,
         quantity,
+        requested_delivery_date,
+        created_at,
         delivery_city,
         delivery_address,
         customers (
@@ -233,13 +235,12 @@ export default async function DeliveriesPage({
           name
         ),
         deliveries (
-          id
+          id,
+          order_id,
+          status,
+          scheduled_date
         )
       `)
-      .in("status", [
-        "ready",
-        "delivered",
-      ])
       .order("created_at", {
         ascending: false,
       }),
@@ -252,22 +253,33 @@ export default async function DeliveriesPage({
     );
   }
 
-  if (eligibleOrdersResponse.error) {
+  if (ordersResponse.error) {
     console.error(
       "Error cargando pedidos disponibles:",
-      eligibleOrdersResponse.error
+      ordersResponse.error
     );
   }
 
   const deliveries =
     deliveriesResponse.data || [];
 
-  const eligibleOrders = (
-    eligibleOrdersResponse.data || []
-  ).filter(
+  const allOrders = ordersResponse.data || [];
+
+  const eligibleOrders = allOrders.filter(
     (order) =>
-      !order.deliveries ||
-      order.deliveries.length === 0
+      ["ready", "delivered"].includes(order.status) &&
+      (
+        !order.deliveries ||
+        order.deliveries.length === 0
+      )
+  );
+
+  const deliveryByOrderId = new Map(
+    allOrders.flatMap((order) =>
+      (order.deliveries || []).map(
+        (delivery) => [order.id, delivery]
+      )
+    )
   );
 
   const pendingCount = deliveries.filter(
@@ -358,14 +370,12 @@ export default async function DeliveriesPage({
       </section>
 
       {canManageDeliveries ? (
-      <section className="mt-8 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 sm:p-6">
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-orange-400">
-          Nueva operación
-        </p>
-
-        <h2 className="mt-2 text-xl font-black text-zinc-100">
-          Programar entrega
-        </h2>
+      <details className="group mt-6 rounded-xl border border-cyan-500/30 bg-cyan-500/5">
+        <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-black text-cyan-300">
+          <span>+ Programar nueva entrega</span>
+          <span className="group-open:rotate-180">▾</span>
+        </summary>
+        <section className="border-t border-zinc-800 p-4 sm:p-5">
 
         {eligibleOrders.length === 0 ? (
           <p className="mt-5 rounded-xl border border-dashed border-zinc-800 p-5 text-sm text-zinc-600">
@@ -510,8 +520,52 @@ export default async function DeliveriesPage({
             </div>
           </form>
         )}
-      </section>
+        </section>
+      </details>
       ) : null}
+
+      <section className="mt-8">
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-black text-zinc-100">
+              Seguimiento de todos los pedidos
+            </h2>
+            <p className="mt-1 text-xs text-zinc-600">
+              Fecha final y avance logístico visibles sin abrir el registro.
+            </p>
+          </div>
+          <span className="text-xs font-bold text-zinc-500">
+            {allOrders.length} pedidos
+          </span>
+        </div>
+
+        <div className="mt-4 grid gap-2">
+          {allOrders.map((order) => {
+            const delivery = deliveryByOrderId.get(order.id);
+            return (
+              <div
+                key={order.id}
+                className="grid gap-2 rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3 text-xs sm:grid-cols-[130px_minmax(180px,1fr)_minmax(140px,1fr)_150px_170px] sm:items-center"
+              >
+                <span className="font-mono font-black text-orange-400">{getOrderNumber(order)}</span>
+                <strong className="truncate text-zinc-200">{order.products?.name || "Producto"}</strong>
+                <span className="truncate text-zinc-400">{order.customers?.full_name || "Sin cliente"}</span>
+                <span className="text-zinc-400">
+                  Entrega: {formatDate(delivery?.scheduled_date || order.requested_delivery_date)}
+                </span>
+                <span className={[
+                  "w-fit rounded-full border px-2.5 py-1 font-black",
+                  delivery
+                    ? STATUS_STYLES[delivery.status]
+                    : "border-zinc-700 bg-zinc-950 text-zinc-500",
+                ].join(" ")}>
+                  {delivery ? STATUS_LABELS[delivery.status] : "Sin entrega programada"}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </section>
 
       <section className="mt-8">
         <div className="flex gap-2 overflow-x-auto pb-3">
@@ -662,7 +716,13 @@ export default async function DeliveriesPage({
                 </div>
               </div>
 
-              <div className="mt-5 grid gap-4 sm:grid-cols-3">
+              <details className="group mt-5 rounded-xl border border-zinc-800 bg-zinc-950/30">
+                <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-xs font-black text-zinc-400">
+                  <span>Ver seguimiento y editar entrega</span>
+                  <span className="group-open:rotate-180">▾</span>
+                </summary>
+
+              <div className="grid gap-4 border-t border-zinc-800 p-4 sm:grid-cols-3">
                 <div className="rounded-xl border border-zinc-800 bg-zinc-950/50 p-4">
                   <p className="text-xs font-bold uppercase text-zinc-600">
                     Guía
@@ -957,6 +1017,7 @@ export default async function DeliveriesPage({
                 </form>
               </details>
               ) : null}
+              </details>
             </article>
           );
         })}

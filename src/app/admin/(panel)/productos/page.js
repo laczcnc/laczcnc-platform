@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+/* eslint-disable @next/next/no-img-element */
+
 import {
   hasPermission,
   PERMISSIONS,
@@ -97,7 +99,8 @@ export default async function AdminProductsPage({
 
   const canManageProducts = hasPermission(
     profile.role,
-    PERMISSIONS.PRODUCTS_MANAGE
+    PERMISSIONS.PRODUCTS_MANAGE,
+    profile.section_access
   );
 
   const params = await searchParams;
@@ -242,7 +245,44 @@ export default async function AdminProductsPage({
             No fue posible cargar los productos.
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <div className="divide-y divide-zinc-800 md:hidden">
+            {productList.map((product) => (
+              <article key={product.id} className="p-4">
+                <div className="flex items-start gap-3">
+                  <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950">
+                    {product.image_url ? (
+                      <img src={product.image_url} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                    ) : (
+                      <span className="grid h-full place-items-center text-[9px] text-zinc-700">Sin foto</span>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-bold text-zinc-200">{product.name}</p>
+                    <p className="mt-1 text-xs text-zinc-600">
+                      {product.product_categories?.name || "Sin categoría"} · {formatPrice(product)}
+                    </p>
+                  </div>
+                  <Link
+                    href={canManageProducts ? `/admin/productos/${product.id}/editar` : `/producto/${product.slug}`}
+                    className="shrink-0 rounded-lg border border-zinc-700 px-3 py-2 text-xs font-bold text-zinc-300"
+                  >
+                    {canManageProducts ? "Editar" : "Ver"}
+                  </Link>
+                </div>
+
+                {canManageProducts ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <StatusButton product={product} field="is_published" active={product.is_published} activeText="Publicado" inactiveText="Borrador" activeClass="border-emerald-500/30 bg-emerald-500/10 text-emerald-400" />
+                    <StatusButton product={product} field="is_featured" active={product.is_featured} activeText="Destacado" inactiveText="Normal" activeClass="border-orange-500/30 bg-orange-500/10 text-orange-400" />
+                    <StatusButton product={product} field="is_available" active={product.is_available} activeText="Disponible" inactiveText="No disponible" activeClass="border-blue-500/30 bg-blue-500/10 text-blue-400" />
+                  </div>
+                ) : null}
+              </article>
+            ))}
+          </div>
+
+          <div className="hidden overflow-x-auto md:block">
             <table className="min-w-full divide-y divide-zinc-800">
               <thead className="bg-zinc-950/70">
                 <tr>
@@ -274,7 +314,16 @@ export default async function AdminProductsPage({
                     key={product.id}
                     className="transition hover:bg-zinc-900/80"
                   >
-                    <td className="px-5 py-5">
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950">
+                          {product.image_url ? (
+                            <img src={product.image_url} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                          ) : (
+                            <span className="grid h-full place-items-center text-[9px] text-zinc-700">Sin foto</span>
+                          )}
+                        </div>
+                        <div className="min-w-0">
                       <p className="font-bold text-zinc-200">
                         {product.name}
                       </p>
@@ -283,6 +332,8 @@ export default async function AdminProductsPage({
                         {product.short_description ||
                           "Sin descripción breve."}
                       </p>
+                        </div>
+                      </div>
                     </td>
 
                     <td className="whitespace-nowrap px-5 py-5 text-sm text-zinc-400">
@@ -354,6 +405,7 @@ export default async function AdminProductsPage({
               </tbody>
             </table>
           </div>
+          </>
         )}
       </section>
     </div>

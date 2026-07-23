@@ -239,12 +239,25 @@ export async function toggleProductFlag(formData) {
   const productId = getText(formData, "product_id");
   const field = getText(formData, "field");
   const currentValue = getText(formData, "current_value");
+  const requestedFilter = getText(formData, "return_filter");
 
   const allowedFields = [
     "is_published",
     "is_featured",
     "is_available",
   ];
+
+  const allowedFilters = [
+    "published",
+    "draft",
+    "featured",
+    "available",
+    "unavailable",
+  ];
+
+  const returnQuery = allowedFilters.includes(requestedFilter)
+    ? `&estado=${requestedFilter}`
+    : "";
 
   if (!productId || !allowedFields.includes(field)) {
     redirect("/admin/productos?error=invalid_toggle");
@@ -267,7 +280,9 @@ export async function toggleProductFlag(formData) {
   revalidateCatalog();
   revalidatePath(`/admin/productos/${productId}/editar`);
 
-  redirect("/admin/productos?success=status_updated");
+  redirect(
+    `/admin/productos?success=status_updated${returnQuery}`
+  );
 }
 
 export async function deleteProduct(formData) {

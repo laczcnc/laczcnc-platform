@@ -60,6 +60,38 @@ export const PERMISSIONS = {
 
 const ALL_PERMISSIONS = Object.values(PERMISSIONS);
 
+export const ADMIN_SECTIONS = [
+  { key: "dashboard", label: "Dashboard", permission: PERMISSIONS.DASHBOARD_VIEW },
+  { key: "alerts", label: "Alertas", permission: PERMISSIONS.ALERTS_VIEW },
+  { key: "reports", label: "Reportes", permission: PERMISSIONS.REPORTS_VIEW },
+  { key: "quotes", label: "Cotizaciones", permission: PERMISSIONS.QUOTES_VIEW },
+  { key: "orders", label: "Pedidos", permission: PERMISSIONS.ORDERS_VIEW },
+  { key: "customers", label: "Clientes", permission: PERMISSIONS.CUSTOMERS_VIEW },
+  { key: "products", label: "Productos", permission: PERMISSIONS.PRODUCTS_VIEW },
+  { key: "production", label: "Producción", permission: PERMISSIONS.PRODUCTION_VIEW },
+  { key: "workshops", label: "Talleres", permission: PERMISSIONS.WORKSHOPS_VIEW },
+  { key: "inventory", label: "Inventario", permission: PERMISSIONS.INVENTORY_VIEW },
+  { key: "deliveries", label: "Entregas", permission: PERMISSIONS.DELIVERIES_VIEW },
+  { key: "map", label: "Mapa comercial", permission: PERMISSIONS.MAP_VIEW },
+  { key: "gallery", label: "Galería", permission: PERMISSIONS.GALLERY_VIEW },
+  { key: "users", label: "Usuarios", permission: PERMISSIONS.USERS_VIEW },
+  { key: "settings", label: "Configuración", permission: PERMISSIONS.SETTINGS_VIEW },
+];
+
+const SECTION_BY_PERMISSION = Object.fromEntries(
+  ADMIN_SECTIONS.flatMap((section) => {
+    const prefix = `${section.key}.`;
+    return ALL_PERMISSIONS.filter(
+      (permission) =>
+        permission === section.permission ||
+        permission.startsWith(prefix)
+    ).map((permission) => [permission, section.key]);
+  })
+);
+
+SECTION_BY_PERMISSION["orders.workflow.manage"] = "orders";
+SECTION_BY_PERMISSION["payments.manage"] = "orders";
+
 export const ROLE_PERMISSIONS = {
   admin: ALL_PERMISSIONS,
 
@@ -184,30 +216,62 @@ export function getRolePermissions(role) {
   return ROLE_PERMISSIONS[normalizedRole] ?? [];
 }
 
-export function hasPermission(role, permission) {
+export function hasPermission(
+  role,
+  permission,
+  sectionAccess = null
+) {
   if (!permission) {
     return false;
+  }
+
+  const normalizedRole = normalizeRole(role);
+
+  if (normalizedRole === "admin") {
+    return true;
+  }
+
+  const sectionKey = SECTION_BY_PERMISSION[permission];
+
+  if (
+    sectionKey &&
+    sectionAccess &&
+    typeof sectionAccess === "object" &&
+    Object.prototype.hasOwnProperty.call(
+      sectionAccess,
+      sectionKey
+    )
+  ) {
+    return sectionAccess[sectionKey] === true;
   }
 
   return getRolePermissions(role).includes(permission);
 }
 
-export function hasAnyPermission(role, permissions = []) {
+export function hasAnyPermission(
+  role,
+  permissions = [],
+  sectionAccess = null
+) {
   if (!Array.isArray(permissions) || permissions.length === 0) {
     return false;
   }
 
   return permissions.some((permission) =>
-    hasPermission(role, permission)
+    hasPermission(role, permission, sectionAccess)
   );
 }
 
-export function hasAllPermissions(role, permissions = []) {
+export function hasAllPermissions(
+  role,
+  permissions = [],
+  sectionAccess = null
+) {
   if (!Array.isArray(permissions) || permissions.length === 0) {
     return false;
   }
 
   return permissions.every((permission) =>
-    hasPermission(role, permission)
+    hasPermission(role, permission, sectionAccess)
   );
 }

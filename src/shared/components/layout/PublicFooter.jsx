@@ -1,7 +1,24 @@
 import Link from "next/link";
 
-export default function PublicFooter() {
+import { createClient } from "@/infrastructure/supabase/server";
+
+function settingsMap(rows) {
+  return Object.fromEntries(
+    (rows || []).map((row) => [
+      row.setting_key,
+      row.setting_value || "",
+    ])
+  );
+}
+
+export default async function PublicFooter() {
   const currentYear = new Date().getFullYear();
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("business_settings")
+    .select("setting_key, setting_value")
+    .eq("is_public", true);
+  const settings = settingsMap(data);
 
   return (
     <footer className="border-t border-zinc-800 bg-zinc-950">
@@ -10,42 +27,33 @@ export default function PublicFooter() {
           <h2 className="font-mono font-black text-orange-500">
             LACZ<span className="text-zinc-100">CnC</span>
           </h2>
-
           <p className="mt-3 max-w-sm text-sm leading-6 text-zinc-500">
-            Impresión, sublimación, publicidad, merchandising y soluciones
-            personalizadas.
+            {settings.business_description ||
+              "Impresión, sublimación, publicidad, merchandising y soluciones personalizadas."}
           </p>
         </section>
 
         <section>
           <h2 className="text-sm font-bold text-zinc-200">Contacto</h2>
-
           <div className="mt-3 space-y-2 text-sm text-zinc-500">
-            <p>Juliaca, Puno, Perú</p>
-            <p>WhatsApp: próximamente</p>
-            <p>Correo: próximamente</p>
+            <p>{settings.business_address || settings.business_city || "Juliaca, Puno, Perú"}</p>
+            <p>WhatsApp: {settings.whatsapp_number || "próximamente"}</p>
+            <p>Correo: {settings.contact_email || "próximamente"}</p>
           </div>
         </section>
 
         <section>
           <h2 className="text-sm font-bold text-zinc-200">Horario</h2>
-
-          <div className="mt-3 space-y-2 text-sm text-zinc-500">
-            <p>Lunes a viernes: 8:00–19:00</p>
-            <p>Sábado: 9:00–17:00</p>
-            <p>Domingo: cerrado</p>
-          </div>
+          <p className="mt-3 whitespace-pre-line text-sm leading-6 text-zinc-500">
+            {settings.business_hours || "Lunes a sábado"}
+          </p>
         </section>
       </div>
 
       <div className="border-t border-zinc-900">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 py-5 text-xs text-zinc-600 sm:flex-row sm:px-6 lg:px-8">
           <p>© {currentYear} LaczCnC. Todos los derechos reservados.</p>
-
-          <Link
-            href="/admin"
-            className="rounded-lg px-3 py-2 font-semibold text-zinc-600 transition hover:bg-zinc-900 hover:text-orange-400"
-          >
+          <Link href="/admin" className="rounded-lg px-3 py-2 font-semibold text-zinc-600 hover:bg-zinc-900 hover:text-orange-400">
             Acceso interno
           </Link>
         </div>

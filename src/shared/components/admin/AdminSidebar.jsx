@@ -59,7 +59,8 @@ export default function AdminSidebar() {
             full_name,
             role,
             is_active,
-            job_title
+            job_title,
+            section_access
           `
         )
         .eq("id", user.id)
@@ -123,7 +124,10 @@ export default function AdminSidebar() {
       return [];
     }
 
-    return getAdminNavigation(profile.role);
+    return getAdminNavigation(
+      profile.role,
+      profile.section_access
+    );
   }, [profile]);
 
   async function handleLogout() {

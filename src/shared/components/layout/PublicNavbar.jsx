@@ -3,6 +3,7 @@ import Link from "next/link";
 const navigation = [
   { href: "/", label: "Tienda" },
   { href: "/galeria", label: "Galería" },
+  { href: "/carrito", label: "Carrito" },
   { href: "/contacto", label: "Contacto" },
 ];
 

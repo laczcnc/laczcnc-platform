@@ -37,7 +37,8 @@ async function getAuthenticatedProfile() {
         phone,
         job_title,
         department,
-        commission_rate
+        commission_rate,
+        section_access
       `
     )
     .eq("id", user.id)
@@ -109,7 +110,8 @@ export async function requirePermission(
   if (
     !hasPermission(
       session.profile.role,
-      permission
+      permission,
+      session.profile.section_access
     )
   ) {
     redirect(
@@ -131,7 +133,8 @@ export async function requireAnyPermission(
   if (
     !hasAnyPermission(
       session.profile.role,
-      permissions
+      permissions,
+      session.profile.section_access
     )
   ) {
     redirect("/admin/sin-acceso");

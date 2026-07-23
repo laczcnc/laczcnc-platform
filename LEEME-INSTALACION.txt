@@ -1,0 +1,107 @@
+LACZCNC — BLOQUE UX COMPACTO 2026-07-23
+========================================
+
+BASE VERIFICADA
+---------------
+Este paquete fue reconstruido sobre el commit:
+d249574 feat: add business reports and analytics
+
+El paquete contiene archivos completos para reemplazo. No contiene node_modules,
+.next, variables de entorno ni credenciales.
+
+
+1. COPIA DE SEGURIDAD
+--------------------
+Desde la carpeta del proyecto:
+
+git status
+git add .
+git commit -m "chore: backup before compact ux block"
+
+Si git status indica que no hay cambios, puedes continuar sin crear ese commit.
+
+
+2. EXTRAER EL ZIP
+-----------------
+Extrae el contenido del ZIP directamente dentro de la carpeta raíz:
+
+C:\Users\zurit\Videos\laczcnc-platform
+
+Acepta reemplazar los archivos existentes. Deben quedar las carpetas src y
+supabase directamente en la raíz del proyecto, no dentro de otra subcarpeta.
+
+
+3. EJECUTAR LAS MIGRACIONES EN SUPABASE
+---------------------------------------
+Abre Supabase > SQL Editor y ejecuta los archivos completos, en este orden:
+
+1) supabase/migrations/20260722_008_public_contact_settings.sql
+2) supabase/migrations/20260723_009_profile_section_access.sql
+
+Ambos scripts son repetibles y están preparados para conservar los datos
+existentes.
+
+
+4. VALIDAR EN VS CODE / POWERSHELL
+----------------------------------
+npm install
+npm run lint
+npm run build
+npm run dev
+
+El lint puede mostrar advertencias por etiquetas <img>; no son errores de
+compilación. El bloque fue validado con Next.js 16.2.10.
+
+
+5. GUARDAR Y PUBLICAR
+---------------------
+git add .
+git commit -m "feat: compact admin workflows and add cart access controls"
+git push origin main
+
+Vercel debería iniciar automáticamente el despliegue del commit nuevo.
+
+
+CAMBIOS PRINCIPALES
+-------------------
+- Cotizaciones y pedidos aparecen como listas compactas.
+- Estados editables directamente desde la vista previa.
+- Producción permite cambiar estado y prioridad con confirmación.
+- Talleres muestra primero la lista y deja el formulario bajo “Nuevo taller”.
+- Entregas muestra seguimiento de todos los pedidos.
+- Productos incluye vista previa de la imagen principal.
+- Galería admite imágenes y videos y usa una vista pública compacta.
+- Tienda incluye carrito; el formulario de cotización se abre bajo demanda.
+- Usuarios aparece como lista compacta y el formulario de edición se despliega.
+- El enlace redundante “Crear usuario” se elimina del menú lateral.
+- Administradores pueden asignar acceso individual a secciones del panel.
+- Contacto y pie de página leen la configuración pública del negocio.
+- Buscadores públicos ocupan menos espacio y se abren cuando se necesitan.
+
+
+ACCESOS INDIVIDUALES
+--------------------
+La migración agrega profiles.section_access como JSON.
+
+- Una sección con valor true queda habilitada.
+- Una sección con valor false queda bloqueada.
+- Una sección ausente conserva el acceso normal determinado por el rol.
+- La cuenta con rol admin mantiene acceso total.
+
+
+CONTRASEÑAS
+-----------
+Supabase Auth no permite recuperar ni mostrar contraseñas existentes, ni
+siquiera al administrador. La aplicación permite crear credenciales y
+reemplazar una contraseña, pero nunca leer la contraseña actual.
+
+
+VARIABLES DE VERCEL
+-------------------
+Verifica que sigan configuradas en Production:
+
+NEXT_PUBLIC_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_ANON_KEY
+SUPABASE_SECRET_KEY
+
+No incluyas estas claves dentro del código ni del repositorio.

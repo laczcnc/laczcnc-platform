@@ -116,7 +116,18 @@ export default async function ProductCategoriesPage({
         </div>
       ) : null}
 
-      <section className="mt-8 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5 sm:p-6">
+      <details className="group mt-6 rounded-xl border border-orange-500/30 bg-orange-500/5">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 text-sm font-black text-orange-300 transition hover:bg-orange-500/10">
+          <span>+ Agregar nueva categoría</span>
+          <span className="text-xs text-zinc-600 group-open:hidden">
+            Abrir formulario
+          </span>
+          <span className="hidden text-xs text-zinc-600 group-open:inline">
+            Cerrar
+          </span>
+        </summary>
+
+        <div className="border-t border-zinc-800 p-4 sm:p-5">
         <h2 className="text-lg font-black text-zinc-100">
           Nueva categoría
         </h2>
@@ -209,7 +220,8 @@ export default async function ProductCategoriesPage({
             Crear categoría
           </button>
         </form>
-      </section>
+        </div>
+      </details>
 
       <section className="mt-8">
         <div className="mb-5">
@@ -231,8 +243,33 @@ export default async function ProductCategoriesPage({
             {categoryList.map((category) => (
               <article
                 key={category.id}
-                className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5"
+                className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/50"
               >
+                <details className="group">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-4">
+                    <div className="min-w-0">
+                      <p className="truncate font-black text-zinc-100">
+                        {category.name}
+                      </p>
+                      <p className="mt-1 text-xs text-zinc-600">
+                        {category.products?.length || 0} productos ·
+                        tocar para editar
+                      </p>
+                    </div>
+
+                    <span
+                      className={[
+                        "shrink-0 rounded-full border px-3 py-1 text-xs font-bold",
+                        category.is_active
+                          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                          : "border-zinc-700 bg-zinc-950 text-zinc-500",
+                      ].join(" ")}
+                    >
+                      {category.is_active ? "Activa" : "Inactiva"}
+                    </span>
+                  </summary>
+
+                  <div className="border-t border-zinc-800 p-4">
                 <form
                   action={updateCategory}
                   className="space-y-5"
@@ -369,6 +406,8 @@ export default async function ProductCategoriesPage({
                     Eliminar categoría
                   </button>
                 </form>
+                  </div>
+                </details>
               </article>
             ))}
           </div>

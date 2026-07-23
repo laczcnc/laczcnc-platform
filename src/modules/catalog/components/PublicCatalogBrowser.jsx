@@ -151,6 +151,7 @@ export default function PublicCatalogBrowser({
   products = [],
 }) {
   const [searchTerm, setSearchTerm] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] =
     useState("all");
   const [sortMode, setSortMode] =
@@ -243,16 +244,18 @@ export default function PublicCatalogBrowser({
 
   return (
     <div className="mt-4">
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 sm:p-5">
-        <div className="grid gap-4 lg:grid-cols-[1fr_240px_auto]">
-          <div>
-            <label
-              htmlFor="catalog-search"
-              className="mb-2 block text-xs font-bold uppercase tracking-[0.16em] text-zinc-500"
-            >
-              Buscar producto
-            </label>
+      <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
+        <div className="flex flex-wrap items-end gap-2">
+          <button
+            type="button"
+            onClick={() => setSearchOpen((value) => !value)}
+            className="h-10 rounded-lg border border-zinc-700 px-3 text-xs font-black text-zinc-300"
+          >
+            {searchOpen ? "Cerrar búsqueda" : "Buscar producto"}
+          </button>
 
+          {searchOpen ? (
+          <div className="min-w-[220px] flex-1">
             <input
               id="catalog-search"
               type="search"
@@ -261,25 +264,21 @@ export default function PublicCatalogBrowser({
                 setSearchTerm(event.target.value)
               }
               placeholder="Placa, taza, medalla..."
-              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-700 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/10"
+              autoFocus
+              className="h-10 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 text-sm text-zinc-100 outline-none focus:border-orange-500"
             />
           </div>
+          ) : null}
 
-          <div>
-            <label
-              htmlFor="catalog-sort"
-              className="mb-2 block text-xs font-bold uppercase tracking-[0.16em] text-zinc-500"
-            >
-              Ordenar por
-            </label>
-
+          <div className="min-w-[180px]">
             <select
               id="catalog-sort"
               value={sortMode}
               onChange={(event) =>
                 setSortMode(event.target.value)
               }
-              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm text-zinc-100 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-500/10"
+              aria-label="Ordenar productos"
+              className="h-10 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 text-xs text-zinc-100 outline-none focus:border-orange-500"
             >
               <option value="featured">
                 Destacados primero
@@ -303,12 +302,12 @@ export default function PublicCatalogBrowser({
             </select>
           </div>
 
-          <div className="flex items-end">
+          <div>
             <button
               type="button"
               onClick={clearFilters}
               disabled={!filtersAreActive}
-              className="w-full rounded-xl border border-zinc-700 px-5 py-3 text-sm font-black text-zinc-300 transition hover:border-orange-500 hover:text-orange-400 disabled:cursor-not-allowed disabled:opacity-40 lg:w-auto"
+              className="h-10 rounded-lg border border-zinc-700 px-3 text-xs font-black text-zinc-300 disabled:opacity-40"
             >
               Limpiar
             </button>

@@ -1,13 +1,16 @@
 import Link from "next/link";
 
-import { PERMISSIONS } from "@/core/auth/permissions";
+import {
+  hasPermission,
+  PERMISSIONS,
+} from "@/core/auth/permissions";
 import { requirePermission } from "@/core/auth/require-permission";
 import { createClient } from "@/infrastructure/supabase/server";
+import InlineActionMenu from "@/shared/components/admin/InlineActionMenu";
 
-export const metadata = {
-  title: "Pedidos",
-};
+import { changeOrderStatus } from "./workflow-actions";
 
+export const metadata = { title: "Pedidos" };
 export const dynamic = "force-dynamic";
 
 const STATUS_LABELS = {
@@ -21,79 +24,81 @@ const STATUS_LABELS = {
 };
 
 const STATUS_STYLES = {
-  draft:
-    "border-zinc-700 bg-zinc-800 text-zinc-300",
-  confirmed:
-    "border-blue-500/30 bg-blue-500/10 text-blue-300",
-  production:
-    "border-violet-500/30 bg-violet-500/10 text-violet-300",
-  ready:
-    "border-amber-500/30 bg-amber-500/10 text-amber-300",
-  delivered:
-    "border-cyan-500/30 bg-cyan-500/10 text-cyan-300",
-  completed:
-    "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
-  cancelled:
-    "border-red-500/30 bg-red-500/10 text-red-300",
+  draft: "border-zinc-700 bg-zinc-800 text-zinc-300",
+  confirmed: "border-blue-500/30 bg-blue-500/10 text-blue-300",
+  production: "border-violet-500/30 bg-violet-500/10 text-violet-300",
+  ready: "border-amber-500/30 bg-amber-500/10 text-amber-300",
+  delivered: "border-cyan-500/30 bg-cyan-500/10 text-cyan-300",
+  completed: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
+  cancelled: "border-red-500/30 bg-red-500/10 text-red-300",
+};
+
+const TRANSITIONS = {
+  draft: ["confirmed", "cancelled"],
+  confirmed: ["draft", "production", "cancelled"],
+  production: ["confirmed", "ready", "cancelled"],
+  ready: ["production", "delivered", "cancelled"],
+  delivered: ["ready", "completed"],
+  completed: ["delivered"],
+  cancelled: ["draft"],
+};
+
+const ROLE_TRANSITIONS = {
+  sales: {
+    draft: ["confirmed", "cancelled"],
+    confirmed: ["draft", "cancelled"],
+    delivered: ["completed"],
+    completed: ["delivered"],
+    cancelled: ["draft"],
+  },
+  production: {
+    confirmed: ["production"],
+    production: ["confirmed", "ready"],
+    ready: ["production"],
+  },
+  delivery: {
+    ready: ["delivered"],
+    delivered: ["ready"],
+  },
 };
 
 function formatDate(value) {
-  if (!value) {
-    return "Sin fecha";
-  }
-
+  if (!value) return "Sin fecha";
   return new Intl.DateTimeFormat("es-PE", {
     dateStyle: "medium",
-    timeStyle: "short",
     timeZone: "America/Lima",
   }).format(new Date(value));
 }
 
-function formatDateOnly(value) {
-  if (!value) {
-    return "No definida";
-  }
-
-  return new Intl.DateTimeFormat("es-PE", {
-    dateStyle: "medium",
-    timeZone: "America/Lima",
-  }).format(new Date(`${value}T12:00:00`));
-}
-
 function formatMoney(value) {
-  if (
-    value === null ||
-    value === undefined ||
-    value === ""
-  ) {
+  if (value === null || value === undefined || value === "") {
     return "Sin definir";
   }
-
   return new Intl.NumberFormat("es-PE", {
     style: "currency",
     currency: "PEN",
   }).format(Number(value));
 }
 
-function normalizeWhatsAppPhone(phone) {
-  const digits = String(phone || "").replace(
-    /\D/g,
-    ""
-  );
-
-  if (!digits) {
-    return "";
+function phoneForWhatsApp(value) {
+  let phone = String(value || "").replace(/\D/g, "");
+  if (!phone) return null;
+  if (!phone.startsWith("51") && phone.length === 9) {
+    phone = `51${phone}`;
   }
+  return phone;
+}
 
-  if (digits.startsWith("51")) {
-    return digits;
-  }
+function availableTransitions(role, status) {
+  const values =
+    role === "admin" || role === "manager"
+      ? TRANSITIONS[status] || []
+      : ROLE_TRANSITIONS[role]?.[status] || [];
 
-  if (digits.length === 9) {
-    return `51${digits}`;
-  }
-
-  return digits;
+  return values.map((value) => ({
+    value,
+    label: STATUS_LABELS[value],
+  }));
 }
 
 export default async function OrdersPage({
@@ -102,503 +107,215 @@ export default async function OrdersPage({
   const { profile } = await requirePermission(
     PERMISSIONS.ORDERS_VIEW
   );
+  const params = await searchParams;
+  const selectedOrderId =
+    typeof params?.pedido === "string"
+      ? params.pedido
+      : null;
+  const selectedCustomerId =
+    typeof params?.cliente === "string"
+      ? params.cliente
+      : null;
+  const selectedStatus =
+    typeof params?.estado === "string" &&
+    STATUS_LABELS[params.estado]
+      ? params.estado
+      : null;
 
-  const canManageOrders = [
+  const canManage = hasPermission(
+    profile.role,
+    PERMISSIONS.ORDERS_MANAGE,
+    profile.section_access
+  );
+  const canChangeStatus = hasPermission(
+    profile.role,
+    PERMISSIONS.ORDER_WORKFLOW_MANAGE,
+    profile.section_access
+  );
+  const canViewFinancials = [
     "admin",
     "manager",
     "sales",
   ].includes(profile.role);
 
-  const canViewFinancials = canManageOrders;
-
-  const queryParams = await searchParams;
-
-  const selectedOrderId =
-    typeof queryParams?.pedido === "string"
-      ? queryParams.pedido
-      : null;
-
-  const selectedCustomerId =
-    typeof queryParams?.cliente === "string"
-      ? queryParams.cliente
-      : null;
-
-  const selectedStatus =
-    typeof queryParams?.estado === "string"
-      ? queryParams.estado
-      : null;
-
   const supabase = await createClient();
-
   let query = supabase
     .from("orders")
     .select(`
-      id,
-      order_number,
-      customer_id,
-      quote_request_id,
-      product_id,
-      status,
-      quantity,
-      unit_price,
-      total_amount,
-      discount_amount,
-      advance_payment,
-      balance_due,
-      customer_notes,
-      internal_notes,
-      delivery_city,
-      delivery_address,
-      requested_delivery_date,
-      confirmed_at,
-      completed_at,
-      cancelled_at,
-      created_at,
-      updated_at,
-      customers (
-        id,
-        full_name,
-        phone,
-        email,
-        company_name,
-        city,
-        address
-      ),
-      products (
-        id,
-        name,
-        slug,
-        image_url
-      )
+      id, order_number, customer_id, quote_request_id, product_id,
+      status, quantity, unit_price, total_amount, discount_amount,
+      advance_payment, balance_due, customer_notes, internal_notes,
+      delivery_city, delivery_address, requested_delivery_date,
+      confirmed_at, completed_at, cancelled_at, created_at, updated_at,
+      customers ( id, full_name, phone, email, company_name, city, address ),
+      products ( id, name, slug, image_url )
     `)
-    .order("created_at", {
-      ascending: false,
-    });
+    .order("created_at", { ascending: false });
 
-  if (selectedOrderId) {
-    query = query.eq("id", selectedOrderId);
-  }
-
+  if (selectedOrderId) query = query.eq("id", selectedOrderId);
   if (selectedCustomerId) {
-    query = query.eq(
-      "customer_id",
-      selectedCustomerId
-    );
+    query = query.eq("customer_id", selectedCustomerId);
   }
-
-  if (
-    selectedStatus &&
-    Object.prototype.hasOwnProperty.call(
-      STATUS_LABELS,
-      selectedStatus
-    )
-  ) {
-    query = query.eq(
-      "status",
-      selectedStatus
-    );
-  }
+  if (selectedStatus) query = query.eq("status", selectedStatus);
 
   const { data: orders, error } = await query;
-
-  if (error) {
-    console.error("Error cargando pedidos:", {
-      code: error.code,
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-    });
-  }
-
-  const orderList = orders || [];
-
-  const hasActiveFilter = Boolean(
-    selectedOrderId ||
-      selectedCustomerId ||
-      selectedStatus
-  );
+  const list = orders || [];
 
   return (
-    <div className="px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
-      <section className="flex flex-col justify-between gap-5 xl:flex-row xl:items-end">
+    <div className="px-4 py-7 sm:px-6 lg:px-8">
+      <header className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-orange-400">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-orange-400">
             Operaciones
           </p>
-
-          <h1 className="mt-3 text-3xl font-black text-zinc-50 sm:text-4xl">
+          <h1 className="mt-2 text-3xl font-black text-zinc-50">
             Pedidos
           </h1>
-
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-500">
-            Pedidos creados desde cotizaciones y
-            operaciones comerciales.
+          <p className="mt-2 text-sm text-zinc-500">
+            Vista compacta. Toca una fila para abrir el pedido completo.
           </p>
         </div>
-
-        <div className="flex flex-wrap gap-3">
-          {hasActiveFilter ? (
-            <Link
-              href="/admin/pedidos"
-              className="rounded-xl border border-zinc-700 px-5 py-3 text-sm font-black text-zinc-300 transition hover:border-orange-500 hover:text-orange-400"
-            >
+        <div className="flex gap-2">
+          {(selectedOrderId || selectedCustomerId || selectedStatus) ? (
+            <Link href="/admin/pedidos" className="rounded-xl border border-zinc-700 px-4 py-2 text-sm font-bold">
               Ver todos
             </Link>
           ) : null}
-
-          <Link
-            href="/admin/cotizaciones"
-            className="rounded-xl border border-zinc-700 px-5 py-3 text-sm font-black text-zinc-300 transition hover:border-orange-500 hover:text-orange-400"
-          >
+          <Link href="/admin/cotizaciones" className="rounded-xl border border-zinc-700 px-4 py-2 text-sm font-bold">
             Cotizaciones
           </Link>
-
-          <Link
-            href="/admin/clientes"
-            className="rounded-xl border border-zinc-700 px-5 py-3 text-sm font-black text-zinc-300 transition hover:border-cyan-500 hover:text-cyan-300"
-          >
-            Clientes
-          </Link>
         </div>
-      </section>
+      </header>
 
-      <section className="mt-8">
-        <div className="flex gap-2 overflow-x-auto pb-3">
-          <Link
-            href="/admin/pedidos"
-            className={[
-              "shrink-0 rounded-full border px-4 py-2 text-sm font-bold transition",
-              !selectedStatus &&
-              !selectedCustomerId &&
-              !selectedOrderId
-                ? "border-orange-500 bg-orange-500 text-zinc-950"
-                : "border-zinc-700 bg-zinc-900 text-zinc-400 hover:border-orange-500 hover:text-orange-400",
-            ].join(" ")}
-          >
-            Todos
-          </Link>
-
-          {Object.entries(STATUS_LABELS).map(
-            ([status, label]) => (
-              <Link
-                key={status}
-                href={`/admin/pedidos?estado=${status}`}
-                className={[
-                  "shrink-0 rounded-full border px-4 py-2 text-sm font-bold transition",
-                  selectedStatus === status
-                    ? "border-orange-500 bg-orange-500 text-zinc-950"
-                    : "border-zinc-700 bg-zinc-900 text-zinc-400 hover:border-orange-500 hover:text-orange-400",
-                ].join(" ")}
-              >
-                {label}
-              </Link>
-            )
-          )}
-        </div>
-      </section>
+      <nav className="mt-6 flex gap-2 overflow-x-auto pb-2">
+        <Link
+          href="/admin/pedidos"
+          className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-bold ${!selectedStatus ? "border-orange-500 bg-orange-500 text-zinc-950" : "border-zinc-700 bg-zinc-900 text-zinc-400"}`}
+        >
+          Todos
+        </Link>
+        {Object.entries(STATUS_LABELS).map(
+          ([status, label]) => (
+            <Link
+              key={status}
+              href={`/admin/pedidos?estado=${status}`}
+              className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-bold ${selectedStatus === status ? "border-orange-500 bg-orange-500 text-zinc-950" : "border-zinc-700 bg-zinc-900 text-zinc-400"}`}
+            >
+              {label}
+            </Link>
+          )
+        )}
+      </nav>
 
       {error ? (
-        <div
-          role="alert"
-          className="mt-8 rounded-2xl border border-red-500/30 bg-red-500/10 p-5"
-        >
-          <p className="font-bold text-red-300">
-            No se pudieron cargar los pedidos.
-          </p>
-
-          <p className="mt-2 text-sm text-red-300/70">
-            Revisa la tabla orders, sus relaciones y
-            las políticas RLS.
-          </p>
-        </div>
+        <p className="mt-6 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-red-300">
+          No se pudieron cargar los pedidos.
+        </p>
+      ) : null}
+      {!error && list.length === 0 ? (
+        <p className="mt-6 rounded-xl border border-dashed border-zinc-700 p-10 text-center text-zinc-500">
+          No existen pedidos para este filtro.
+        </p>
       ) : null}
 
-      {!error && orderList.length === 0 ? (
-        <div className="mt-8 rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/30 px-6 py-14 text-center">
-          <p className="text-lg font-black text-zinc-300">
-            No existen pedidos para este filtro
-          </p>
+      <section className="mt-6 grid gap-2">
+        {list.map((order) => {
+          const transitions = availableTransitions(
+            profile.role,
+            order.status
+          );
+          const wa = phoneForWhatsApp(
+            order.customers?.phone
+          );
 
-          <p className="mt-3 text-sm text-zinc-600">
-            Convierte una cotización en pedido o cambia
-            el filtro seleccionado.
-          </p>
-        </div>
-      ) : null}
+          return (
+            <article key={order.id} className="rounded-xl border border-zinc-800 bg-zinc-900/60">
+              <div className="flex flex-wrap items-center gap-3 border-b border-zinc-800/70 px-4 py-3">
+                <InlineActionMenu
+                  action={changeOrderStatus}
+                  currentValue={order.status}
+                  currentLabel={STATUS_LABELS[order.status] || order.status}
+                  currentClassName={STATUS_STYLES[order.status] || STATUS_STYLES.draft}
+                  fieldName="new_status"
+                  options={transitions}
+                  hiddenFields={{ order_id: order.id }}
+                  confirmMessage="¿Cambiar el pedido a {value}?"
+                  disabled={!canChangeStatus || transitions.length === 0}
+                />
+                <span className="font-mono text-xs font-black text-orange-400">
+                  PED-{String(order.order_number).padStart(6, "0")}
+                </span>
+              </div>
 
-      {orderList.length > 0 ? (
-        <section className="mt-8 grid gap-5">
-          {orderList.map((order) => {
-            const customerPhone =
-              normalizeWhatsAppPhone(
-                order.customers?.phone
-              );
+              <details className="group">
+                <summary className="grid cursor-pointer list-none gap-3 px-4 py-3 sm:grid-cols-[minmax(200px,1.3fr)_minmax(160px,1fr)_120px_140px_auto] sm:items-center">
+                  <strong className="truncate text-sm text-zinc-100">
+                    {order.products?.name || "Producto no especificado"}
+                  </strong>
+                  <span className="truncate text-xs font-bold text-zinc-300">
+                    {order.customers?.full_name || "Sin cliente"}
+                  </span>
+                  <span className="text-xs font-black text-orange-400">
+                    {canViewFinancials ? formatMoney(order.total_amount) : `Cant. ${order.quantity || "—"}`}
+                  </span>
+                  <span className="text-xs font-black text-red-300">
+                    {canViewFinancials ? `Saldo ${formatMoney(order.balance_due)}` : formatDate(order.requested_delivery_date)}
+                  </span>
+                  <span className="text-xs font-black text-zinc-500 group-open:text-orange-400">
+                    Ver detalles ▾
+                  </span>
+                </summary>
 
-            return (
-              <article
-                key={order.id}
-                className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 transition hover:border-orange-500/30 sm:p-6"
-              >
-                <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-start">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <span
-                        className={[
-                          "rounded-full border px-3 py-1 text-xs font-black uppercase tracking-wider",
-                          STATUS_STYLES[
-                            order.status
-                          ] ||
-                            STATUS_STYLES.draft,
-                        ].join(" ")}
-                      >
-                        {STATUS_LABELS[
-                          order.status
-                        ] || order.status}
-                      </span>
-
-                      <span className="font-mono text-sm font-black text-orange-400">
-                        PED-
-                        {String(
-                          order.order_number
-                        ).padStart(6, "0")}
-                      </span>
-                    </div>
-
-                    <h2 className="mt-4 break-words text-xl font-black text-zinc-100">
-                      {order.products?.name ||
-                        "Producto no especificado"}
-                    </h2>
-
-                    <p className="mt-2 text-sm text-zinc-500">
-                      Cliente:{" "}
-                      <span className="font-bold text-zinc-300">
-                        {order.customers
-                          ?.full_name ||
-                          "Sin cliente"}
-                      </span>
-                    </p>
-
-                    {order.customers
-                      ?.company_name ? (
-                      <p className="mt-1 text-sm font-bold text-cyan-400">
-                        {
-                          order.customers
-                            .company_name
-                        }
-                      </p>
+                <div className="border-t border-zinc-800 p-4">
+                  <div className="grid gap-4 text-xs sm:grid-cols-2 lg:grid-cols-4">
+                    <p><b className="text-zinc-500">Cantidad</b><br />{order.quantity || "No definida"}</p>
+                    <p><b className="text-zinc-500">Fecha del pedido</b><br />{formatDate(order.created_at)}</p>
+                    <p><b className="text-zinc-500">Entrega solicitada</b><br />{formatDate(order.requested_delivery_date)}</p>
+                    <p><b className="text-zinc-500">Ciudad</b><br />{order.delivery_city || "No definida"}</p>
+                    {canViewFinancials ? (
+                      <>
+                        <p><b className="text-zinc-500">Precio unitario</b><br />{formatMoney(order.unit_price)}</p>
+                        <p><b className="text-zinc-500">Adelanto</b><br />{formatMoney(order.advance_payment)}</p>
+                        <p><b className="text-zinc-500">Descuento</b><br />{formatMoney(order.discount_amount)}</p>
+                      </>
                     ) : null}
                   </div>
-
-                  <div className="text-left lg:text-right">
-                    <p className="text-sm text-zinc-600">
-                      {formatDate(
-                        order.created_at
-                      )}
-                    </p>
-
-                    <p className="mt-2 font-mono text-xs text-zinc-700">
-                      {order.id.slice(0, 8)}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-zinc-600">
-                      Cantidad
-                    </p>
-
-                    <p className="mt-1 font-black text-zinc-300">
-                      {order.quantity ??
-                        "No definida"}
-                    </p>
-                  </div>
-
-                  {canViewFinancials ? (
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-zinc-600">
-                      Precio unitario
-                    </p>
-
-                    <p className="mt-1 font-black text-zinc-300">
-                      {formatMoney(
-                        order.unit_price
-                      )}
-                    </p>
-                  </div>
-                  ) : null}
-
-                  {canViewFinancials ? (
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-zinc-600">
-                      Total
-                    </p>
-
-                    <p className="mt-1 font-black text-orange-400">
-                      {formatMoney(
-                        order.total_amount
-                      )}
-                    </p>
-                  </div>
-                  ) : null}
-
-                  {canViewFinancials ? (
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-zinc-600">
-                      Saldo pendiente
-                    </p>
-
-                    <p className="mt-1 font-black text-red-300">
-                      {formatMoney(
-                        order.balance_due
-                      )}
-                    </p>
-                  </div>
-                  ) : null}
-
-                  {canViewFinancials ? (
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-zinc-600">
-                      Descuento
-                    </p>
-
-                    <p className="mt-1 font-black text-zinc-300">
-                      {formatMoney(
-                        order.discount_amount
-                      )}
-                    </p>
-                  </div>
-                  ) : null}
-
-                  {canViewFinancials ? (
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-zinc-600">
-                      Adelanto
-                    </p>
-
-                    <p className="mt-1 font-black text-emerald-300">
-                      {formatMoney(
-                        order.advance_payment
-                      )}
-                    </p>
-                  </div>
-                  ) : null}
-
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-zinc-600">
-                      Ciudad de entrega
-                    </p>
-
-                    <p className="mt-1 font-black text-zinc-300">
-                      {order.delivery_city ||
-                        "No definida"}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-zinc-600">
-                      Fecha solicitada
-                    </p>
-
-                    <p className="mt-1 font-black text-zinc-300">
-                      {formatDateOnly(
-                        order.requested_delivery_date
-                      )}
-                    </p>
-                  </div>
-                </div>
-
-                {order.delivery_address ? (
-                  <div className="mt-5 rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
-                    <p className="text-xs font-bold uppercase tracking-wider text-zinc-600">
-                      Dirección de entrega
-                    </p>
-
-                    <p className="mt-2 break-words text-sm leading-6 text-zinc-400">
+                  {order.delivery_address ? (
+                    <p className="mt-4 rounded-lg bg-zinc-950 p-3 text-sm text-zinc-400">
                       {order.delivery_address}
                     </p>
-                  </div>
-                ) : null}
-
-                {order.customer_notes ? (
-                  <div className="mt-5 rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
-                    <p className="text-xs font-bold uppercase tracking-wider text-zinc-600">
-                      Detalles del cliente
-                    </p>
-
-                    <p className="mt-2 whitespace-pre-line text-sm leading-6 text-zinc-400">
-                      {order.customer_notes}
-                    </p>
-                  </div>
-                ) : null}
-
-                {order.internal_notes ? (
-                  <div className="mt-5 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
-                    <p className="text-xs font-bold uppercase tracking-wider text-amber-400">
-                      Notas internas
-                    </p>
-
-                    <p className="mt-2 whitespace-pre-line text-sm leading-6 text-amber-200/70">
-                      {order.internal_notes}
-                    </p>
-                  </div>
-                ) : null}
-
-                <div className="mt-5 flex flex-wrap gap-3 border-t border-zinc-800 pt-5">
-                  <Link
-                    href={`/admin/pedidos/${order.id}/editar`}
-                    className="rounded-xl bg-orange-500 px-4 py-2 text-sm font-black text-zinc-950 transition hover:bg-orange-400"
-                  >
-                    {canManageOrders
-                      ? "Editar pedido"
-                      : "Abrir pedido"}
-                  </Link>
-
-                  {order.customers?.id &&
-                  canManageOrders ? (
-                    <Link
-                      href={`/admin/clientes/${order.customers.id}/editar`}
-                      className="rounded-xl border border-cyan-500/30 px-4 py-2 text-sm font-black text-cyan-300 transition hover:bg-cyan-500 hover:text-zinc-950"
-                    >
-                      Editar cliente
+                  ) : null}
+                  {order.customer_notes || order.internal_notes ? (
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                      <p className="whitespace-pre-line rounded-lg bg-zinc-950 p-3 text-sm text-zinc-400">
+                        {order.customer_notes || "Sin notas del cliente"}
+                      </p>
+                      <p className="whitespace-pre-line rounded-lg bg-zinc-950 p-3 text-sm text-amber-200/70">
+                        {order.internal_notes || "Sin notas internas"}
+                      </p>
+                    </div>
+                  ) : null}
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <Link href={`/admin/pedidos/${order.id}/editar`} className="rounded-lg bg-orange-500 px-3 py-2 text-xs font-black text-zinc-950">
+                      {canManage ? "Editar pedido" : "Abrir pedido"}
                     </Link>
-                  ) : null}
-
-                  {customerPhone ? (
-                    <a
-                      href={`https://wa.me/${customerPhone}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm font-black text-emerald-300 transition hover:bg-emerald-500 hover:text-zinc-950"
-                    >
-                      WhatsApp
-                    </a>
-                  ) : null}
-
-                  {order.products?.slug ? (
-                    <Link
-                      href={`/producto/${order.products.slug}`}
-                      target="_blank"
-                      className="rounded-xl border border-zinc-700 px-4 py-2 text-sm font-black text-zinc-300 transition hover:border-orange-500 hover:text-orange-400"
-                    >
-                      Ver producto
-                    </Link>
-                  ) : null}
-
-                  {order.quote_request_id ? (
-                    <Link
-                      href="/admin/cotizaciones"
-                      className="rounded-xl border border-zinc-700 px-4 py-2 text-sm font-black text-zinc-300 transition hover:border-orange-500 hover:text-orange-400"
-                    >
-                      Ver cotización original
-                    </Link>
-                  ) : null}
+                    {wa ? (
+                      <a href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer" className="rounded-lg border border-emerald-500/30 px-3 py-2 text-xs font-bold text-emerald-300">
+                        WhatsApp
+                      </a>
+                    ) : null}
+                    {order.products?.slug ? (
+                      <Link href={`/producto/${order.products.slug}`} target="_blank" className="rounded-lg border border-zinc-700 px-3 py-2 text-xs font-bold">
+                        Ver producto
+                      </Link>
+                    ) : null}
+                  </div>
                 </div>
-              </article>
-            );
-          })}
-        </section>
-      ) : null}
+              </details>
+            </article>
+          );
+        })}
+      </section>
     </div>
   );
 }
