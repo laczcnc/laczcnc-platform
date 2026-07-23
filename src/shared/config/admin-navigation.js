@@ -10,6 +10,13 @@ export const adminNavigation = [
     enabled: true,
   },
   {
+    name: "Alertas",
+    href: "/admin/alertas",
+    shortName: "AL",
+    permission: PERMISSIONS.ALERTS_VIEW,
+    enabled: true,
+  },
+  {
     name: "Cotizaciones",
     href: "/admin/cotizaciones",
     shortName: "CO",
