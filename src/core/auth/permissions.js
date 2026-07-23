@@ -17,6 +17,7 @@ export const ROLE_LABELS = {
 export const PERMISSIONS = {
   DASHBOARD_VIEW: "dashboard.view",
   ALERTS_VIEW: "alerts.view",
+  REPORTS_VIEW: "reports.view",
 
   QUOTES_VIEW: "quotes.view",
   QUOTES_MANAGE: "quotes.manage",
@@ -65,6 +66,7 @@ export const ROLE_PERMISSIONS = {
   manager: [
     PERMISSIONS.DASHBOARD_VIEW,
     PERMISSIONS.ALERTS_VIEW,
+    PERMISSIONS.REPORTS_VIEW,
 
     PERMISSIONS.QUOTES_VIEW,
     PERMISSIONS.QUOTES_MANAGE,

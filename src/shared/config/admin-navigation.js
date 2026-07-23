@@ -17,6 +17,13 @@ export const adminNavigation = [
     enabled: true,
   },
   {
+    name: "Reportes",
+    href: "/admin/reportes",
+    shortName: "RE",
+    permission: PERMISSIONS.REPORTS_VIEW,
+    enabled: true,
+  },
+  {
     name: "Cotizaciones",
     href: "/admin/cotizaciones",
     shortName: "CO",
